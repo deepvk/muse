@@ -207,9 +207,4 @@ trainer = pl.Trainer(accelerator='gpu',
                      gradient_clip_val=5
                     ) 
 
-#trainer.fit(model=mp_model)
-
-chk_path = 'lightning_logs/version_0/checkpoints/epoch=8-step=42102.ckpt'
-model_fine = My_model.load_from_checkpoint(chk_path, train_set = train_set, valid_set = test_set, batch_size=2, num_workers=16)
-
-trainer.fit(model=model_fine)
+trainer.fit(model=mp_model)
