@@ -20,3 +20,12 @@ pip install -r requirements-dev.txt
 Docker Will here
 ## Data
 We use dataset with [MUSDB18-HQ](https://sigsep.github.io/datasets/musdb.html#musdb18-hq-uncompressed-wav)
+The dataset consists of
+150 full-length stereo tracks sampled at 44.1 kHz. providing a
+complete audio mix and four main elements: ”vocal”, ”bass”,
+”drums” and ”other” for each sample, which can be considered as a target in the context of source separation. The kit
+structure offers 100 training compositions and 50 validation
+compositions
+
+## Training
+1. Run `python -m separator.pl_model`.🙂
