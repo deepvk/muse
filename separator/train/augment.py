@@ -1,11 +1,3 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-"""Data augmentations.
-"""
-
 import random
 import torchaudio  
 import torch as th
@@ -111,9 +103,7 @@ class Scale(nn.Module):
             scales = th.empty(batch, streams, 1, 1, device=device).uniform_(self.min, self.max)
             wav *= scales
         return wav
-
-    
-### 
+ 
 
 class FadeMask(nn.Module):
 
@@ -138,63 +128,58 @@ class FadeMask(nn.Module):
         return wav   # output -> tensor
     
     
-class PitchShift_f(nn.Module):  # input -> tensor     fast (костыли)
+class PitchShift_f(nn.Module):  # input -> tensor     fast (РєРѕСЃС‚С‹Р»Рё)
     '''
     https://github.com/asteroid-team/torch-audiomentations/blob/main/torch_audiomentations/augmentations/pitch_shift.py
     Pitch shift the sound up or down without changing the tempo
     '''
-    def __init__(self, proba=1, min_semitones=-3, max_semitones=3, 
+    def __init__(self, proba=1, min_semitones=-5, max_semitones=5, 
                  min_semitones_other=-2, max_semitones_other=2, sample_rate=44100):
-
-        super().__init__()
-#         self.pitch = PitchShift(p=proba, 
-#                                 min_transpose_semitones=min_semitones,
-#                                 max_transpose_semitones=max_semitones,
-#                                 sample_rate = sample_rate)
         
+        # min_semitones - vocal source
+        # max_semitones - vocals source
+        # min_semitones_other - drums, bass, other source
+        # max_semitones_other - drums, bass, other source
+        super().__init__()
         self.pitch_vocals = PitchShift(p=proba, 
                                 min_transpose_semitones=min_semitones,
                                 max_transpose_semitones=max_semitones,
-                                sample_rate=sample_rate)
+                                sample_rate = sample_rate)
         
         self.pitch_other = PitchShift(p=proba, 
                                 min_transpose_semitones=min_semitones_other,
                                 max_transpose_semitones=max_semitones_other,
-                                sample_rate=sample_rate)
-
-        '''
-        Minimum pitch shift transposition in semitones
-        Maximum pitch shift transposition in semitones
-        '''
+                                sample_rate = sample_rate)
+        
         
     def forward(self, wav):
         wav = wav.clone()
         
-        wav[:,0] = self.pitch_other(wav[:,0])
-        wav[:,1] = self.pitch_other(wav[:,1])
-        wav[:,2] = self.pitch_other(wav[:,2])
-        wav[:,3] = self.pitch_vocals(wav[:,3])
+        wav[:,0] =  self.pitch_other(wav[:,0])
+        wav[:,1] =  self.pitch_other(wav[:,1])
+        wav[:,2] =  self.pitch_other(wav[:,2])
+        wav[:,3] =  self.pitch_vocals(wav[:,3])
         
-        return wav   # output -> tensor
+        return wav 
     
     
-class TimeChange_f(nn.Module):  # input -> np.array      fast
+class TimeChange_f(nn.Module):
 
-    def __init__(self, proba=1, min_rate=0.8, max_rate = 1.3, sample_rate = 44100):
+    def __init__(self, proba=1, min_rate=0.8, max_rate = 1.2, sample_rate = 44100):
         super().__init__()
         self.sample_rate = sample_rate
         self.proba = proba
    
-        factors_list = [0.8, 0.85, 0.9, 0.95, 1.05, 1.1, 1.15, 1.2, 1.25, 1.3]
+        factors_list = [0.8, 0.85, 0.9, 0.95, 1.05, 1.1, 1.15, 1.2]
         self.time = torchaudio.transforms.SpeedPerturbation(orig_freq = sample_rate,
                                                             factors = factors_list)
         
     def forward(self, wav):
 
         if random.random() < self.proba:
-            wav, _ = self.time(wav) # output - tensor
+            wav, _ = self.time(wav) 
             
-        return wav   # output -> tensor
+        return wav
 
 #new augment
 
@@ -241,3 +226,45 @@ class Reverse(nn.Module):
             wav[..., start : end + start][:,3] = th.flip(wav[..., start : end + start][:,3], [2])
         
         return wav
+
+class Remix_wave(nn.Module): # shuffle and sum track
+    def __init__(self, proba=1, group_size=4, mix_depth=2):
+        super().__init__()
+        self.proba = proba
+        self.remix = Remix(proba=1, group_size=group_size)
+        self.mix_depth = mix_depth
+        
+    def forward(self, wav):
+        if random.random() < self.proba:
+            batch, streams, channels, time = wav.size()
+            device = wav.device
+            mix = wav.clone()
+            for i in range(self.mix_depth):
+                mix += self.remix(wav)
+            return mix
+        else:
+            return wav
+
+class Remix_channel(nn.Module): # shuffle channel track
+    def __init__(self, proba = 1):
+        super().__init__()
+        
+        self.proba = proba
+    
+    def forward(self, wav):
+        batch, streams, channels, time = wav.size()
+        device = wav.device
+        if self.training and random.random() < self.proba:
+            drums = wav[:,0].reshape(-1, time)
+            bass = wav[:,1].reshape(-1, time)
+            other = wav[:,2].reshape(-1, time)
+            vocals = wav[:,3].reshape(-1, time)
+            
+            s0 = drums[th.randperm(drums.size()[0])].view(batch, 1, 2, time)
+            s1 = bass[th.randperm(bass.size()[0])].view(batch, 1, 2, time)
+            s2 = other[th.randperm(other.size()[0])].view(batch, 1, 2, time)
+            s3 = vocals[th.randperm(vocals.size()[0])].view(batch, 1, 2, time)
+            
+            return th.concat( (s0, s1, s2, s3), dim=1)
+        else:
+            return wav
