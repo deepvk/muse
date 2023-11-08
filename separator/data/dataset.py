@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import tqdm
+import logging
 
 import musdb
 import julius
@@ -219,8 +220,8 @@ class MetaData:
         mean = 0
         std = 1
         for source in sources + [File.MIXTURE]:
-            file = track / f"{source}{ext}"
-            if source == File.MIXTURE and not file.exists():
+            source_file = track / f"{source}{ext}"
+            if source == File.MIXTURE and not source_file.exists():
                 audio = 0
                 for sub_source in sources:
                     sub_file = track / f"{sub_source}{ext}"
@@ -230,12 +231,12 @@ class MetaData:
                 if would_clip:
                     assert ta.get_audio_backend() == 'soundfile', \
                         'use dset.backend=soundfile'
-                ta.save(file, audio, sr, encoding='PCM_F')
+                ta.save(source_file, audio, sr, encoding='PCM_F')
 
             try:
-                info = ta.info(str(file))
+                info = ta.info(str(source_file))
             except RuntimeError:
-                print(file)
+                logging.error(f"{source_file} is invalid")
                 raise
             length = info.num_frames
             if track_length is None:
@@ -243,18 +244,18 @@ class MetaData:
                 track_samplerate = info.sample_rate
             elif track_length != length:
                 raise ValueError(
-                    f"Invalid length for file {file}: "
+                    f"Invalid length for file {source_file}: "
                     f"expecting {track_length} but got {length}.")
             elif info.sample_rate != track_samplerate:
                 raise ValueError(
-                    f"Invalid sample rate for file {file}: "
+                    f"Invalid sample rate for file {source_file}: "
                     f"expecting {track_samplerate} but got \
                         {info.sample_rate}.")
             if source == File.MIXTURE and normalize:
                 try:
-                    wav, _ = ta.load(str(file))
+                    wav, _ = ta.load(str(source_file))
                 except RuntimeError:
-                    print(file)
+                    logging.error(f"{source_file} is invalid")
                     raise
                 wav = wav.mean(0)
                 mean = wav.mean().item()
