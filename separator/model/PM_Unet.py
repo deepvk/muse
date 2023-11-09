@@ -20,7 +20,7 @@ class Model_Unet(nn.Module):
         layers=2,
     ):
         """
-        depth - (int) number of layers in the encoder and in the decoder
+        depth - (int) number of layers encoder and decoder
         source - (list[str]) list of source names
         channel - (int) initial number of hidden channels
         is_mono - (bool) mono input/output audio channel
