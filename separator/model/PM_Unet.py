@@ -1,23 +1,24 @@
 import torch
 import torch as th
 import torch.nn as nn
-from .STFT import STFT
+from model.STFT import STFT
 from functools import partial
-from .modules import Encoder, Decoder, Bottleneck_v2, Bottleneck
+from model.modules import Encoder, Decoder, Bottleneck_v2, Bottleneck
+from typing import List, Optional
 
 
 class Model_Unet(nn.Module):
     def __init__(
         self,
-        depth=4,
-        source=["drums", "bass", "other", "vocals"],
-        channel=28,
-        is_mono=False,
-        mask_mode=False,
-        skip_mode="concat",
-        nfft=4096,
-        bottlneck_lstm=True,
-        layers=2,
+        depth: int=4,
+        source: List[str]=["drums", "bass", "other", "vocals"],
+        channel: int=28,
+        is_mono: Optional[bool]=False,
+        mask_mode: Optional[bool]=False,
+        skip_mode: str="concat",
+        nfft: int=4096,
+        bottlneck_lstm: Optional[bool]=True,
+        layers: int=2,
     ):
         """
         depth - (int) number of layers encoder and decoder
@@ -152,13 +153,13 @@ class Model_Unet(nn.Module):
             )
             channel //= 2
 
-    def __wave2feature(self, wave):
+    def __wave2feature(self, wave: torch.Tensor):
         z = self.stft.stft(wave)
         phase = th.atan2(z.imag, z.real)
         magnitude = z.abs()
         return magnitude, phase
 
-    def __get_act(self, act_type):
+    def __get_act(self, act_type: str):
         if act_type == "gelu":
             return nn.GELU()
         elif act_type == "relu":
@@ -169,7 +170,7 @@ class Model_Unet(nn.Module):
         else:
             raise Exception
 
-    def __norm(self, norm_type):
+    def __norm(self, norm_type: str):
         if norm_type == "BatchNorm":
             return nn.BatchNorm2d
         elif norm_type == "InstanceNorm2d":
@@ -179,13 +180,13 @@ class Model_Unet(nn.Module):
         else:
             return nn.Identity()
 
-    def __normal(self, x):  # normalization input signal
+    def __normal(self, x: torch.Tensor):  # normalization input signal
         mean = x.mean(dim=(1, 2, 3), keepdim=True)
         std = x.std(dim=(1, 2, 3), keepdim=True)
         x = (x - mean) / (1e-5 + std)
         return mean, std, x
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         length_wave = x.shape[-1]
 
         x_m, x_p = self.__wave2feature(x)

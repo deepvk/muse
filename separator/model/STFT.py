@@ -1,12 +1,12 @@
 import torch
 import torch as th
-import typing as tp
+from typing import Tuple, Optional, Union
 import math
 import torch.nn.functional as F
 
 
 class STFT:
-    def __init__(self, n_fft=4096, pad=0):
+    def __init__(self, n_fft: int=4096, pad: int=0):
         self.n_fft = n_fft
         self.pad = pad
         self.hop_length = self.n_fft // 4
@@ -14,7 +14,7 @@ class STFT:
     def __pad1d(
         self,
         x: torch.Tensor,
-        paddings: tp.Tuple[int, int],
+        paddings: Tuple[int, int],
         mode: str = "constant",
         value: float = 0.0,
     ):
@@ -40,7 +40,7 @@ class STFT:
         assert (out[..., padding_left : padding_left + length] == x0).all()
         return out
 
-    def _spec(self, x):
+    def _spec(self, x: torch.Tensor):
         *other, length = x.shape
         x = x.reshape(-1, length)
         z = th.stft(
@@ -57,7 +57,7 @@ class STFT:
         _, freqs, frame = z.shape
         return z.view(*other, freqs, frame)
 
-    def _ispec(self, z, length):
+    def _ispec(self, z: torch.Tensor, length: int):
         *other, freqs, frames = z.shape
         n_fft = 2 * freqs - 2
         z = z.view(-1, freqs, frames)
@@ -78,7 +78,7 @@ class STFT:
         _, length = z.shape
         return z.view(*other, length)
 
-    def stft(self, x):
+    def stft(self, x: torch.Tensor):
         hl = self.hop_length
         x0 = x  # noqa
         le = int(math.ceil(x.shape[-1] / self.hop_length))
@@ -90,7 +90,7 @@ class STFT:
         z = z[..., 2 : 2 + le]
         return z
 
-    def istft(self, z, length=None, scale=0):
+    def istft(self, z: torch.Tensor, length: int=0, scale: Optional[int]=0):
         hl = self.hop_length // (4**scale)
         z = F.pad(z, (0, 0, 0, 1))
         z = F.pad(z, (2, 2))
