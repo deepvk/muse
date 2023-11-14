@@ -124,8 +124,12 @@ class EvalModel:
         Path(default_input_dir).mkdir(parents=True, exist_ok=True)
 
         default_sample_path = f"{default_input_dir}/sample.wav"
-        gdown.download(self.config.gdrive_mix, default_sample_path)
-
+        try:
+            Path(default_sample_path).touch()
+            gdown.download(self.config.gdrive_mix, default_sample_path)
+        except FileExistsError:
+            pass
+        
         return default_sample_path
 
 
