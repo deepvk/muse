@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Union
 
 
-__GDRIVE_PREFIX = "https://drive.google.com/uc?id="
+GDRIVE_PREFIX = "https://drive.google.com/uc?id="
 
 @dataclass
 class TrainConfig:
@@ -40,8 +40,8 @@ class EvalConfig:
 
     # weights
     weights_dir: Path = Path('eval/weights')
-    gdrive_weights_LSTM: str = f"{__GDRIVE_PREFIX}18jT2TYffdRD1fL7wecAiM5nJPM_OKpNB"
-    gdrive_weights_conv: str = f"{__GDRIVE_PREFIX}1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7"
+    gdrive_weights_LSTM: str = f"{GDRIVE_PREFIX}18jT2TYffdRD1fL7wecAiM5nJPM_OKpNB"
+    gdrive_weights_conv: str = f"{GDRIVE_PREFIX}1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7"
 
     # eval instance
     segment: int = 7
@@ -55,4 +55,4 @@ class EvalConfig:
     default_result_dir: str = "eval/output"
     default_input_dir: str = "eval/input"
     # adele
-    gdrive_mix: str = f"{__GDRIVE_PREFIX}1zJpyW1fYxHKXDcDH9s5DiBCYiRpraDB3"
+    gdrive_mix: str = f"{GDRIVE_PREFIX}1zJpyW1fYxHKXDcDH9s5DiBCYiRpraDB3"

@@ -6,7 +6,6 @@ from pathlib import Path
 import torch
 import torchaudio
 from torchaudio.transforms import Fade
-from torchaudio.io import StreamWriter
 
 from model.PM_Unet import Model_Unet
 
@@ -14,7 +13,7 @@ from model.PM_Unet import Model_Unet
 class EvalModel:
     def __init__(self, config, model_bottlneck_lstm = True):
         self.config = config
-        self.model_bottleneck_lstm = model_bottlneck_lstm
+        self.model_bottlneck_lstm = model_bottlneck_lstm
         self.resolve_weigths()
 
         self.model = Model_Unet(
@@ -101,7 +100,11 @@ class EvalModel:
         overlap_frames = self.overlap * sample_rate
         fade = Fade(fade_in_len=0, fade_out_len=int(overlap_frames), fade_shape='linear')
 
-        final = torch.zeros(batch, len(['drums', 'bass', 'other', 'vocals']), channels, length, device=device)
+        final = torch.zeros(
+            batch,
+            len(['drums', 'bass', 'other', 'vocals']),
+            channels, length, device=device
+        )
 
         while start < length - overlap_frames:
             chunk = mix[:, :, start:end]
@@ -138,29 +141,17 @@ def main(args, config):
     audios = eval_model.track(args.mix_path)
 
     out_dir = f"{args.out_dir}/{os.path.basename(args.mix_path)}/"
-    out_paths = (
+    out_paths = ( 
         f"{out_dir}drums.wav",
         f"{out_dir}bass.wav",
         f"{out_dir}other.wav",
         f"{out_dir}vocals.wav",
     )
-    streams = [StreamWriter(dst=out_path) for out_path in out_paths]
-    for stream in streams:
-        stream.add_audio_stream(
-            config.sample_rate,
-            config.num_channels
-        )
-    
-    with (
-        streams[0].open(),
-        streams[1].open(),
-        streams[2].open(),
-        streams[3].open()
-        ):
-        streams[0].write_audio_chunk(0, audios['drums'])
-        streams[1].write_audio_chunk(0, audios['bass'])
-        streams[2].write_audio_chunk(0, audios['other'])
-        streams[3].write_audio_chunk(0, audios['vocals'])
+
+    torchaudio.save(out_paths[0], audios["drums"], config.sample_rate)
+    torchaudio.save(out_paths[1], audios["bass"], config.sample_rate)
+    torchaudio.save(out_paths[2], audios["other"], config.sample_rate)
+    torchaudio.save(out_paths[3], audios["vocals"], config.sample_rate)
 
 
 if __name__ == "__main__":
