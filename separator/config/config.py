@@ -1,5 +1,9 @@
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Union
 
+
+__GDRIVE_PREFIX = "https://drive.google.com/uc?id="
 
 @dataclass
 class TrainConfig:
@@ -30,3 +34,25 @@ class TrainConfig:
     max_epochs: int = 1000
     precision: str = "bf16-mixed"
 
+@dataclass
+class EvalConfig:
+    device: str = "cpu"
+
+    # weights
+    weights_dir: Path = Path('eval/weights')
+    gdrive_weights_LSTM: str = f"{__GDRIVE_PREFIX}18jT2TYffdRD1fL7wecAiM5nJPM_OKpNB"
+    gdrive_weights_conv: str = f"{__GDRIVE_PREFIX}1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7"
+
+    # eval instance
+    segment: int = 7
+    overlap: float = 0.2
+    offset: Union[int, None] = None
+    duration: Union[int, None] = None
+    
+    # eval
+    sample_rate: int = 44100
+    num_channels: int = 2
+    default_result_dir: str = "eval/output"
+    default_input_dir: str = "eval/input"
+    # adele
+    gdrive_mix: str = f"{__GDRIVE_PREFIX}1zJpyW1fYxHKXDcDH9s5DiBCYiRpraDB3"
