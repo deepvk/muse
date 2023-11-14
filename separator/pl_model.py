@@ -4,6 +4,8 @@ from train.loss import MultiResSpecLoss
 
 from train import augment
 
+from pathlib import Path
+import os
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
@@ -25,7 +27,7 @@ def compute_uSDR(
     return usdr.mean()
 
 
-class My_model(pl.LightningModule):
+class PM_model(pl.LightningModule):
     def __init__(self):
         super().__init__()
 
@@ -259,40 +261,66 @@ class My_model(pl.LightningModule):
             "monitor": "valid_loss",
         }
 
-
-if __name__ == "__main__":
+def main(config):
     from data.dataset import get_musdb_wav_datasets
     from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 
+    Path(config.musdb_path).mkdir(exist_ok=True, parents=True)
+    Path(config.metadata_train_path).mkdir(exist_ok=True, parents=True)
     train_set = get_musdb_wav_datasets(
-        musdb="../musdb18hq", data_type="train", metadata="./metadata", segment=7
+        musdb=config.musdb_path,
+        data_type="train",
+        metadata=config.metadata_train_path,
+        segment=config.segment
     )
+
+    Path(config.metadata_test_path).mkdir(exist_ok=True, parents=True)
     test_set = get_musdb_wav_datasets(
-        musdb="../musdb18hq", data_type="test", metadata="./metadata1", segment=7
+        musdb=config.musdb_path,
+        data_type="test",
+        metadata=config.metadata_test_path,
+        segment=config.segment
     )
 
     train_dl = torch.utils.data.DataLoader(
-        train_set, batch_size=6, shuffle=True, drop_last=True, num_workers=2
+        train_set,
+        batch_size=config.batch_size,
+        shuffle=config.shuffle_train,
+        drop_last=config.drop_last,
+        num_workers=config.num_workers
     )
     valid_dl = torch.utils.data.DataLoader(
-        test_set, batch_size=6, shuffle=False, num_workers=2
+        test_set,
+        batch_size=config.batch_size,
+        shuffle=config.shuffle_valid,
+        num_workers=config.num_workers
     )
 
     checkpoint_callback = ModelCheckpoint(
-        monitor="valid_loss", mode="min", save_top_k=1
+        monitor="valid_loss",
+        mode=config.metric_monitor_mode,
+        save_top_k=config.save_top_k_model_weights
     )
     lr_monitor = LearningRateMonitor(logging_interval="step")
 
-    mp_model = My_model(
-        train_set=train_set, valid_set=test_set, num_workers=49, batch_size=2
+    mp_model = PM_model(
+        train_set=train_set,
+        valid_set=test_set,
+        num_workers=config.model_num_workers,
+        batch_size=config.model_batch_size
     )
 
     trainer = pl.Trainer(
-        accelerator="gpu",
+        accelerator="gpu" if config.device == "cuda" else "cpu",
         devices="auto",
-        max_epochs=1000,
+        max_epochs=config.max_epochs,
         callbacks=[checkpoint_callback, lr_monitor],
-        precision="bf16-mixed",
+        precision=config.precision,
     )
 
     trainer.fit(mp_model, train_dl, valid_dl)
+
+if __name__ == "__main__":
+    from config.config import TrainConfig
+    config = TrainConfig()
+    main(config)
