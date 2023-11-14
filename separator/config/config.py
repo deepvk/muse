@@ -3,6 +3,8 @@ from dataclasses import dataclass
 
 @dataclass
 class TrainConfig:
+    device: str = "cuda"
+
     # datasets
     musdb_path: str = "train/musdb18hq" # relative to separator/
     metadata_train_path: str = "train/metadata/train"
@@ -19,3 +21,12 @@ class TrainConfig:
     # checkpoint_callback
     metric_monitor_mode: str = "min"
     save_top_k_model_weights: int = 1
+
+    # PM_Unet model instance
+    model_num_workers: int = 49
+    model_batch_size: int = 2
+
+    # lightning
+    max_epochs: int = 1000
+    precision: str = "bf16-mixed"
+
