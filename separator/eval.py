@@ -167,6 +167,7 @@ if __name__ == "__main__":
         "-O", dest="out_dir", help="specified output dir",
         default=config.default_result_dir, type=str
     )
+    # TODO : argument for weigths
 
     args = parser.parse_args()
     main(args, config)

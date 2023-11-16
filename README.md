@@ -31,19 +31,20 @@ compositions
 1. Run `python -m separator.pl_model.py`.🙂
 
 ## Inference
-**On local**
+**Manually local**
 1. Download one the .pt file below:
  * [LSTM-bottleneck version](https://drive.google.com/file/d/18jT2TYffdRD1fL7wecAiM5nJPM_OKpNB/view?usp=drive_link)
  * [WIthout LSTM-bottleneck version](https://drive.google.com/file/d/1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7/view?usp=drive_link)
 
 2. Put .pt file and your mixture of WAV format in
-```bash
-separator/
-```
+`separator/`
 3. Run
-```bash
-jupyter notebook test.py
-```
+`jupyter notebook test.py`
+
+**Auto local**
+0. Configure arguments in `config/config.py`.
+1. `cd separator`
+2. `python3 eval.py [-IO]` (`-I` specify path to mixture, `-O` output dir, both of them optional. By default load `.pt` file with weigths and `sample.wav` using `gdown`). All data stores in `separator/eval/`.
 
 **On collab**
 
