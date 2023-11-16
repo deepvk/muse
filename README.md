@@ -4,7 +4,7 @@
 Work in progress.
 
 ## Structure
-- [`src`](./separator) ‒ main source code with model and dataset implementations and code to train model.
+- [`separator`](./separator) ‒ main source code with model and dataset implementations and code to train model.
 - [`streaming`](./streaming/demo) ‒ source code inference tf-lite version model.
 
 ## Requirements
@@ -31,20 +31,28 @@ compositions
 1. Run `python -m separator.pl_model.py`.🙂
 
 ## Inference
-### Manually local
-1. Download one the .pt file below:
- * [LSTM-bottleneck version](https://drive.google.com/file/d/18jT2TYffdRD1fL7wecAiM5nJPM_OKpNB/view?usp=drive_link)
- * [WIthout LSTM-bottleneck version](https://drive.google.com/file/d/1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7/view?usp=drive_link)
-
-2. Put .pt file and your mixture of WAV format in
-`separator/`
-3. Run
-`jupyter notebook test.py`
 
 ### Auto local
-0. Configure arguments in `config/config.py`.
-1. `cd separator`
-2. `python3 eval.py [-IO]` (`-I` specify path to mixture, `-O` output dir, both of them optional. By default load `.pt` file with weigths and `sample.wav` using `gdown`). All data stores in `separator/eval/`.
+1. Configure arguments in `separator/config/config.py`.
+2. `cd separator`
+3. `python3 eval.py [-IO]`
+    - `-I` specify path to mixture, 
+    - `-O` output dir, both of them optional. 
+    
+By default load `.pt` file with weigths and `sample.wav` using `gdown`
+
+#### For example
+``` 
+python3 eval.py -I path/to/mix -O out_dir
+```
+You should get four separated audio files (vocals.wav and drums.wav, bass.wav, other.wav) in folder. 
+All data stores in `separator/eval/output` by default (you can all specificate in config).
+
+**You can download weights manually**
+
+Download one the .pt file below:
+ * [LSTM-bottleneck version](https://drive.google.com/file/d/18jT2TYffdRD1fL7wecAiM5nJPM_OKpNB/view?usp=drive_link)
+ * [WIthout LSTM-bottleneck version](https://drive.google.com/file/d/1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7/view?usp=drive_link)
 
 ### On collab
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)]()

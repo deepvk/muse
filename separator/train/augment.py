@@ -204,7 +204,7 @@ class TimeChange_f(nn.Module):
     https://pytorch.org/audio/stable/generated/torchaudio.transforms.SpeedPerturbation.html
     """
 
-    def __init__(self, proba=1, min_rate=0.8, max_rate=1.2, sample_rate=44100):
+    def __init__(self, factors_list, proba=1, sample_rate=44100):
         super().__init__()
         self.sample_rate = sample_rate
         self.proba = proba

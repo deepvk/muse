@@ -29,10 +29,18 @@ def compute_uSDR(
 
 class PM_model(pl.LightningModule):
     def __init__(self):
-        super().__init__()
+        super().__init__(config)
 
         self.model = Model_Unet(
-            source=["drums", "bass", "other", "vocals"], depth=4, channel=28
+            depth=config.model_depth,
+            source=config.model_source,
+            channel=config.model_channel,
+            is_mono=config.is_mono,
+            mask_mode=config.mask_mode,
+            skip_mode=config.skip_mode,
+            nfft=config.nfft,
+            bottlneck_lstm=config.bottlneck_lstm,
+            layers=config.layers,
         )
 
         # loss
@@ -45,15 +53,26 @@ class PM_model(pl.LightningModule):
         # augment
         self.augment = [augment.Shift(shift=int(8192), same=True)]
         self.augment += [
-            augment.PitchShift_f(proba=0.2),
-            augment.TimeChange_f(proba=0.2),
+            augment.PitchShift_f(
+                proba=config.pitchshift_proba,
+                min_semitones=config.vocals_min_semitones,
+                max_semitones=config.vocals_max_semitones,
+                min_semitones_other=config.other_min_semitones,
+                max_semitones_other=config.other_max_semitones,
+                flag_other=config.pitchshift_flag_other,
+            ),
+            augment.TimeChange_f(
+                factors_list=config.time_change_factors, proba=config.time_change_proba
+            ),
             augment.FlipChannels(),
             augment.FlipSign(),
-            augment.Remix(proba=1, group_size=4),
-            augment.Scale(proba=1, min=0.25, max=1.25),
-            augment.FadeMask(proba=0.1),
-            augment.Double(proba=0.1),
-            augment.Reverse(proba=0.2),
+            augment.Remix(proba=config.remix_proba, group_size=config.remix_group_size),
+            augment.Scale(
+                proba=config.scale_proba, min=config.scale_min, max=config.scale_max
+            ),
+            augment.FadeMask(proba=config.fade_mask_proba),
+            augment.Double(proba=config.double_proba),
+            augment.Reverse(proba=config.reverse_proba),
         ]
         self.augment = torch.nn.Sequential(*self.augment)
 
@@ -251,15 +270,16 @@ class PM_model(pl.LightningModule):
         )
 
     def configure_optimizers(self):
-        optimizer = torch.optim.RAdam(self.parameters(), lr=0.5 * 3e-4)
+        optimizer = torch.optim.RAdam(self.parameters(), lr=config.lr)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-            optimizer, T_0=40
+            optimizer, T_0=config.T_0
         )
         return {
             "optimizer": optimizer,
             "lr_scheduler": scheduler,
             "monitor": "valid_loss",
         }
+
 
 def main(config):
     from data.dataset import get_musdb_wav_datasets
@@ -271,7 +291,7 @@ def main(config):
         musdb=config.musdb_path,
         data_type="train",
         metadata=config.metadata_train_path,
-        segment=config.segment
+        segment=config.segment,
     )
 
     Path(config.metadata_test_path).mkdir(exist_ok=True, parents=True)
@@ -279,7 +299,7 @@ def main(config):
         musdb=config.musdb_path,
         data_type="test",
         metadata=config.metadata_test_path,
-        segment=config.segment
+        segment=config.segment,
     )
 
     train_dl = torch.utils.data.DataLoader(
@@ -287,28 +307,23 @@ def main(config):
         batch_size=config.batch_size,
         shuffle=config.shuffle_train,
         drop_last=config.drop_last,
-        num_workers=config.num_workers
+        num_workers=config.num_workers,
     )
     valid_dl = torch.utils.data.DataLoader(
         test_set,
         batch_size=config.batch_size,
         shuffle=config.shuffle_valid,
-        num_workers=config.num_workers
+        num_workers=config.num_workers,
     )
 
     checkpoint_callback = ModelCheckpoint(
         monitor="valid_loss",
         mode=config.metric_monitor_mode,
-        save_top_k=config.save_top_k_model_weights
+        save_top_k=config.save_top_k_model_weights,
     )
     lr_monitor = LearningRateMonitor(logging_interval="step")
 
-    mp_model = PM_model(
-        train_set=train_set,
-        valid_set=test_set,
-        num_workers=config.model_num_workers,
-        batch_size=config.model_batch_size
-    )
+    mp_model = PM_model(config)
 
     trainer = pl.Trainer(
         accelerator="gpu" if config.device == "cuda" else "cpu",
@@ -320,7 +335,9 @@ def main(config):
 
     trainer.fit(mp_model, train_dl, valid_dl)
 
+
 if __name__ == "__main__":
     from config.config import TrainConfig
+
     config = TrainConfig()
     main(config)
