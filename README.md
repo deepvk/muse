@@ -13,7 +13,19 @@ Create virtual environment with `venv` or `conda` and install requirements:
 pip install -r requirements.txt
 ```
 ## Docker
-Docker Will here
+You can build an environment with `Docker`.
+#### To set up environment with Docker
+
+If you don't have Docker installed, please follow the links to find installation instructions for [Ubuntu](https://docs.docker.com/desktop/install/linux-install/), [Mac](https://docs.docker.com/desktop/install/mac-install/) or [Windows](https://docs.docker.com/desktop/install/windows-install/).
+
+Build docker image:
+
+    docker build -t pmunet .
+
+Run docker image:
+
+    bash run_docker.sh
+
 ## Data
 We use dataset [MUSDB18-HQ](https://sigsep.github.io/datasets/musdb.html#musdb18-hq-uncompressed-wav). 
 

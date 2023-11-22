@@ -8,9 +8,9 @@ class TrainConfig:
     device: str = "cuda"
 
     # datasets
-    musdb_path: str = "train/musdb18hq"  # relative to separator/
-    metadata_train_path: str = "train/metadata/train"
-    metadata_test_path: str = "train/metadata/test"
+    musdb_path: str = "/app/separator/train/musdb18hq"  # absolute to separator/
+    metadata_train_path: str = "/app/separator/train/metadata/train"
+    metadata_test_path: str = "/app/separator/train/metadata/test"
     segment: int = 7
 
     # dataloaders
@@ -69,7 +69,7 @@ class EvalConfig:
     device: str = "cpu"
 
     # weights
-    weights_dir: Path = Path("eval/weights")
+    weights_dir: Path = Path("/app/separator/eval/weights")
     gdrive_weights_LSTM: str = f"{GDRIVE_PREFIX}18jT2TYffdRD1fL7wecAiM5nJPM_OKpNB"
     gdrive_weights_conv: str = f"{GDRIVE_PREFIX}1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7"
 
@@ -82,7 +82,7 @@ class EvalConfig:
     # eval
     sample_rate: int = 44100
     num_channels: int = 2
-    default_result_dir: str = "eval/output"
-    default_input_dir: str = "eval/input"
+    default_result_dir: str = "/app/separator/eval/output"
+    default_input_dir: str = "/app/separator/eval/input"
     # adele
     gdrive_mix: str = f"{GDRIVE_PREFIX}1zJpyW1fYxHKXDcDH9s5DiBCYiRpraDB3"
