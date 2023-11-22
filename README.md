@@ -67,4 +67,4 @@ Download one the .pt file below:
  * [WIthout LSTM-bottleneck version](https://drive.google.com/file/d/1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7/view?usp=drive_link)
 
 ### On collab
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)]()
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1OXlCZgd5KidMDZDUItOIT9ZA4IUJHXsZ?usp=sharing)
