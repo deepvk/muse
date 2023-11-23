@@ -15,7 +15,7 @@ RUN apt-get update -y \
     && apt-get install -y python3-pip
 RUN echo 'alias python=python3' >> ~/.bashrc
 RUN echo 'NCCL_SOCKET_IFNAME=lo' >> ~/.bashrc
-RUN sudo apt install ffmpeg
+RUN apt-get install ffmpeg
 
 
 WORKDIR /app
