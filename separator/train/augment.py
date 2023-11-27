@@ -209,7 +209,6 @@ class TimeChange_f(nn.Module):
         self.sample_rate = sample_rate
         self.proba = proba
 
-        factors_list = [0.8, 0.85, 0.9, 0.95, 1.05, 1.1, 1.15, 1.2]
         self.time = torchaudio.transforms.SpeedPerturbation(
             orig_freq=sample_rate, factors=factors_list
         )

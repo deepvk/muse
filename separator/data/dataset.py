@@ -20,11 +20,6 @@ class File:
     EXT = ".wav"
 
 
-class Distrib:
-    rank = 0
-    world_size = 1
-
-
 def get_musdb_wav_datasets(
     musdb='musdb18hq',
     musdb_samplerate=44100,
@@ -47,15 +42,13 @@ def get_musdb_wav_datasets(
     sig = hashlib.sha1(str(musdb).encode()).hexdigest()[:8]
     metadata_file = Path(metadata) / ('musdb_' + sig + ".json")
     root = Path(musdb) / data_type
-    if not metadata_file.is_file() and Distrib.rank == 0:
+    if not metadata_file.is_file():
         metadata_file.parent.mkdir(exist_ok=True, parents=True)
         metadata = MetaData.build_metadata(root, sources)
         json.dump(metadata, open(metadata_file, "w"))
-    if Distrib.world_size > 1:
-        distributed.barrier()
     metadata = json.load(open(metadata_file))
 
-    valid_tracks = Wavset.__get_musdb_valid()
+    valid_tracks = _get_musdb_valid()
     if train_valid:
         metadata_train = metadata
     else:
@@ -77,6 +70,12 @@ def get_musdb_wav_datasets(
 
     return data_set
 
+def _get_musdb_valid():
+    # Return musdb valid set.
+    import yaml
+    setup_path = Path(musdb.__path__[0]) / 'configs' / 'mus.yaml'
+    setup = yaml.safe_load(open(setup_path, 'r'))
+    return setup['validation_tracks']
 
 class Wavset:
     def __init__(
@@ -203,14 +202,6 @@ class Wavset:
                     but is not mono.'
             )
         return wav
-
-    @staticmethod
-    def __get_musdb_valid():
-        # Return musdb valid set.
-        import yaml
-        setup_path = Path(musdb.__path__[0]) / 'configs' / 'mus.yaml'
-        setup = yaml.safe_load(open(setup_path, 'r'))
-        return setup['validation_tracks']
 
 
 class MetaData:

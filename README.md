@@ -47,7 +47,7 @@ compositions
 ### Auto local
 1. Configure arguments in `separator/config/config.py`.
 2. `cd separator`
-3. `python3 eval.py [-IO]`
+3. `python3 inference.py [-IO]`
     - `-I` specify path to mixture, 
     - `-O` output dir, both of them optional. 
     
@@ -55,10 +55,10 @@ By default load `.pt` file with weigths and `sample.wav` using `gdown`
 
 #### For example
 ``` 
-python3 eval.py -I path/to/mix -O out_dir
+python3 inference.py -I path/to/mix -O out_dir
 ```
 You should get four separated audio files (vocals.wav and drums.wav, bass.wav, other.wav) in folder. 
-All data stores in `separator/eval/output` by default (you can all specificate in config).
+All data stores in `separator/inference/output` by default (you can all specificate in config).
 
 **You can download weights manually**
 

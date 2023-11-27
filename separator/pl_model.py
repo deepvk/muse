@@ -28,8 +28,8 @@ def compute_uSDR(
 
 
 class PM_model(pl.LightningModule):
-    def __init__(self):
-        super().__init__(config)
+    def __init__(self, config):
+        super().__init__()
 
         self.model = Model_Unet(
             depth=config.model_depth,
@@ -41,17 +41,18 @@ class PM_model(pl.LightningModule):
             nfft=config.nfft,
             bottlneck_lstm=config.bottlneck_lstm,
             layers=config.layers,
+            stft_flag=config.stft_flag
         )
 
         # loss
         self.criterion_1 = nn.L1Loss()
         self.criterion_2 = MultiResSpecLoss(
-            factor=1, f_complex=1, gamma=0.3, n_ffts=[4096]
+            factor=config.factor, f_complex=config.c_factor, gamma=config.gamma, n_ffts=config.loss_nfft
         )
         self.criterion_3 = ScaleInvariantSignalDistortionRatio()
 
         # augment
-        self.augment = [augment.Shift(shift=int(8192), same=True)]
+        self.augment = [augment.Shift(shift=config.shift, same=True)]
         self.augment += [
             augment.PitchShift_f(
                 proba=config.pitchshift_proba,
@@ -72,7 +73,8 @@ class PM_model(pl.LightningModule):
             ),
             augment.FadeMask(proba=config.fade_mask_proba),
             augment.Double(proba=config.double_proba),
-            augment.Reverse(proba=config.reverse_proba),
+            augment.Reverse(proba=config.reverse_proba), augment.Remix_wave(proba=config.mushap_proba, group_size=config.mushap_depth)
+
         ]
         self.augment = torch.nn.Sequential(*self.augment)
 
@@ -330,7 +332,7 @@ def main(config):
         devices="auto",
         max_epochs=config.max_epochs,
         callbacks=[checkpoint_callback, lr_monitor],
-        precision=config.precision,
+        precision=config.precision, gradient_clip_val= config.grad_clip
     )
 
     trainer.fit(mp_model, train_dl, valid_dl)

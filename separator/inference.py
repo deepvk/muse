@@ -10,7 +10,7 @@ from torchaudio.transforms import Fade
 from model.PM_Unet import Model_Unet
 
 
-class EvalModel:
+class InferenceModel:
     def __init__(self, config, model_bottlneck_lstm = True):
         self.config = config
         self.model_bottlneck_lstm = model_bottlneck_lstm
@@ -137,8 +137,8 @@ class EvalModel:
 
 
 def main(args, config):
-    eval_model = EvalModel(config)
-    audios = eval_model.track(args.mix_path)
+    inf_model = InferenceModel(config)
+    audios = inf_model.track(args.mix_path)
 
     out_dir = f"{args.out_dir}/{os.path.basename(args.mix_path)}/"
     out_paths = ( 
@@ -155,9 +155,9 @@ def main(args, config):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluation script")
-    from config.config import EvalConfig
-    config = EvalConfig()
+    parser = argparse.ArgumentParser(description="Inference script")
+    from config.config import InferenceConfig
+    config = InferenceConfig()
 
     parser.add_argument(
         "-I", dest="mix_path", help="path to mixture",

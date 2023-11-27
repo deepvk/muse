@@ -19,6 +19,7 @@ class Model_Unet(nn.Module):
         nfft: int=4096,
         bottlneck_lstm: Optional[bool]=True,
         layers: int=2,
+        stft_flag: bool=True
     ):
         """
         depth - (int) number of layers encoder and decoder
@@ -34,6 +35,7 @@ class Model_Unet(nn.Module):
                 True: bottlneck_lstm - bilstm bottlneck
                 False: bottlneck_conv - convolution bottlneck
         layers - (int) number bottlneck_lstm layers
+        stft_flag - (bool) use stft
         """
         super().__init__()
         self.sources = source
@@ -44,8 +46,9 @@ class Model_Unet(nn.Module):
 
         norm = self.__norm("InstanceNorm2d")
         act = self.__get_act("gelu")
-
-        self.stft = STFT(nfft)
+        if stft_flag:
+            self.stft = STFT(nfft)
+        self.stft_flag = stft_flag
         self.conv_magnitude = nn.Conv2d(
             in_channels=stereo,
             out_channels=channel,
@@ -153,8 +156,7 @@ class Model_Unet(nn.Module):
             )
             channel //= 2
 
-    def __wave2feature(self, wave: torch.Tensor):
-        z = self.stft.stft(wave)
+    def __wave2feature(self, z: torch.Tensor):
         phase = th.atan2(z.imag, z.real)
         magnitude = z.abs()
         return magnitude, phase
@@ -187,9 +189,12 @@ class Model_Unet(nn.Module):
         return mean, std, x
 
     def forward(self, x: torch.Tensor):
-        length_wave = x.shape[-1]
-
-        x_m, x_p = self.__wave2feature(x)
+        if self.stft:
+            z = self.stft.stft(x)
+            length_wave = x.shape[-1]
+        else:
+            z = x
+        x_m, x_p = self.__wave2feature(z)
 
         B, C, Fq, T = x_m.shape
         S = len(self.sources)
@@ -244,5 +249,6 @@ class Model_Unet(nn.Module):
         imag = x_m * th.sin(x_p)
         real = x_m * th.cos(x_p)
         z = th.complex(real, imag)
-
-        return self.stft.istft(z, length_wave)
+        if self.stft:
+            return self.stft.istft(z, length_wave)
+        return z
