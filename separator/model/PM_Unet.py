@@ -10,16 +10,16 @@ from typing import List, Optional
 class Model_Unet(nn.Module):
     def __init__(
         self,
-        depth: int=4,
-        source: List[str]=["drums", "bass", "other", "vocals"],
-        channel: int=28,
-        is_mono: Optional[bool]=False,
-        mask_mode: Optional[bool]=False,
-        skip_mode: str="concat",
-        nfft: int=4096,
-        bottlneck_lstm: Optional[bool]=True,
-        layers: int=2,
-        stft_flag: bool=True
+        depth: int = 4,
+        source: List[str] = ["drums", "bass", "other", "vocals"],
+        channel: int = 28,
+        is_mono: Optional[bool] = False,
+        mask_mode: Optional[bool] = False,
+        skip_mode: str = "concat",
+        nfft: int = 4096,
+        bottlneck_lstm: Optional[bool] = True,
+        layers: int = 2,
+        stft_flag: bool = True,
     ):
         """
         depth - (int) number of layers encoder and decoder

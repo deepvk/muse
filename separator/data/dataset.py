@@ -21,7 +21,7 @@ class File:
 
 
 def get_musdb_wav_datasets(
-    musdb='musdb18hq',
+    musdb="musdb18hq",
     musdb_samplerate=44100,
     use_musdb=True,
     segment=11,
@@ -31,16 +31,16 @@ def get_musdb_wav_datasets(
     samplerate=44100,
     channels=2,
     normalize=True,
-    metadata='./metadata',
-    sources=['drums', 'bass', 'other', 'vocals'],
+    metadata="./metadata",
+    sources=["drums", "bass", "other", "vocals"],
     backend=None,
-    data_type='train'
+    data_type="train",
 ):
     """
     Extract the musdb dataset from the XP arguments.
     """
     sig = hashlib.sha1(str(musdb).encode()).hexdigest()[:8]
-    metadata_file = Path(metadata) / ('musdb_' + sig + ".json")
+    metadata_file = Path(metadata) / ("musdb_" + sig + ".json")
     root = Path(musdb) / data_type
     if not metadata_file.is_file():
         metadata_file.parent.mkdir(exist_ok=True, parents=True)
@@ -53,8 +53,7 @@ def get_musdb_wav_datasets(
         metadata_train = metadata
     else:
         metadata_train = {
-            name: meta for name, meta in metadata.items()
-            if name not in valid_tracks
+            name: meta for name, meta in metadata.items() if name not in valid_tracks
         }
 
     data_set = Wavset(
@@ -65,17 +64,20 @@ def get_musdb_wav_datasets(
         shift=shift,
         samplerate=samplerate,
         channels=channels,
-        normalize=normalize
+        normalize=normalize,
     )
 
     return data_set
 
+
 def _get_musdb_valid():
     # Return musdb valid set.
     import yaml
-    setup_path = Path(musdb.__path__[0]) / 'configs' / 'mus.yaml'
-    setup = yaml.safe_load(open(setup_path, 'r'))
-    return setup['validation_tracks']
+
+    setup_path = Path(musdb.__path__[0]) / "configs" / "mus.yaml"
+    setup = yaml.safe_load(open(setup_path, "r"))
+    return setup["validation_tracks"]
+
 
 class Wavset:
     def __init__(
@@ -88,7 +90,7 @@ class Wavset:
         normalize=True,
         samplerate=44100,
         channels=2,
-        ext=File.EXT
+        ext=File.EXT,
     ):
         """
         Waveset (or mp3 set for that matter).
@@ -125,14 +127,12 @@ class Wavset:
         self.ext = ext
         self.num_examples = []
         for name, meta in self.metadata.items():
-            track_duration = meta['length'] / meta['samplerate']
+            track_duration = meta["length"] / meta["samplerate"]
             if segment is None or track_duration < segment:
                 examples = 1
             else:
                 examples = int(
-                    math.ceil(
-                        (track_duration - self.segment) / self.shift
-                    ) + 1
+                    math.ceil((track_duration - self.segment) / self.shift) + 1
                 )
             self.num_examples.append(examples)
 
@@ -151,23 +151,19 @@ class Wavset:
             num_frames = -1
             offset = 0
             if self.segment is not None:
-                offset = int(meta['samplerate'] * self.shift * index)
-                num_frames = int(math.ceil(meta['samplerate'] * self.segment))
+                offset = int(meta["samplerate"] * self.shift * index)
+                num_frames = int(math.ceil(meta["samplerate"] * self.segment))
             wavs = []
             for source in self.sources:
                 file = self.get_file(name, source)
-                wav, _ = ta.load(
-                    str(file), frame_offset=offset, num_frames=num_frames
-                )
+                wav, _ = ta.load(str(file), frame_offset=offset, num_frames=num_frames)
                 wav = self.__convert_audio_channels(wav, self.channels)
                 wavs.append(wav)
 
             example = th.stack(wavs)
-            example = julius.resample_frac(
-                example, meta['samplerate'], self.samplerate
-            )
+            example = julius.resample_frac(example, meta["samplerate"], self.samplerate)
             if self.normalize:
-                example = (example - meta['mean']) / meta['std']
+                example = (example - meta["mean"]) / meta["std"]
             if self.segment:
                 length = int(self.segment * self.samplerate)
                 example = example[..., :length]
@@ -198,8 +194,8 @@ class Wavset:
         else:
             # Case 4: What is a reasonable choice here?
             raise ValueError(
-                'The audio file has less channels than requested \
-                    but is not mono.'
+                "The audio file has less channels than requested \
+                    but is not mono."
             )
         return wav
 
@@ -220,9 +216,10 @@ class MetaData:
                     audio += sub_audio
                 would_clip = audio.abs().max() >= 1
                 if would_clip:
-                    assert ta.get_audio_backend() == 'soundfile', \
-                        'use dset.backend=soundfile'
-                ta.save(source_file, audio, sr, encoding='PCM_F')
+                    assert (
+                        ta.get_audio_backend() == "soundfile"
+                    ), "use dset.backend=soundfile"
+                ta.save(source_file, audio, sr, encoding="PCM_F")
 
             try:
                 info = ta.info(str(source_file))
@@ -236,12 +233,14 @@ class MetaData:
             elif track_length != length:
                 raise ValueError(
                     f"Invalid length for file {source_file}: "
-                    f"expecting {track_length} but got {length}.")
+                    f"expecting {track_length} but got {length}."
+                )
             elif info.sample_rate != track_samplerate:
                 raise ValueError(
                     f"Invalid sample rate for file {source_file}: "
                     f"expecting {track_samplerate} but got \
-                        {info.sample_rate}.")
+                        {info.sample_rate}."
+                )
             if source == File.MIXTURE and normalize:
                 try:
                     wav, _ = ta.load(str(source_file))
@@ -256,7 +255,7 @@ class MetaData:
             "length": length,
             "mean": mean,
             "std": std,
-            "samplerate": track_samplerate
+            "samplerate": track_samplerate,
         }
 
     def build_metadata(path, sources, normalize=True, ext=File.EXT):
@@ -275,21 +274,21 @@ class MetaData:
         path = Path(path)
         pendings = []
         from concurrent.futures import ThreadPoolExecutor
+
         with ThreadPoolExecutor(8) as pool:
             for root, folders, files in os.walk(path, followlinks=True):
                 root = Path(root)
-                if root.name.startswith('.') or folders or root == path:
+                if root.name.startswith(".") or folders or root == path:
                     continue
                 name = str(root.relative_to(path))
-                pendings.append((
-                    name, pool.submit(
-                        MetaData.__track_metadata,
-                        root,
-                        sources,
-                        normalize,
-                        ext
+                pendings.append(
+                    (
+                        name,
+                        pool.submit(
+                            MetaData.__track_metadata, root, sources, normalize, ext
+                        ),
                     )
-                ))
+                )
 
             for name, pending in tqdm.tqdm(pendings, ncols=120):
                 meta[name] = pending.result()

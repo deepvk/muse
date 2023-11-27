@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 
 class STFT:
-    def __init__(self, n_fft: int=4096, pad: int=0):
+    def __init__(self, n_fft: int = 4096, pad: int = 0):
         self.n_fft = n_fft
         self.pad = pad
         self.hop_length = self.n_fft // 4
@@ -90,7 +90,7 @@ class STFT:
         z = z[..., 2 : 2 + le]
         return z
 
-    def istft(self, z: torch.Tensor, length: int=0, scale: Optional[int]=0):
+    def istft(self, z: torch.Tensor, length: int = 0, scale: Optional[int] = 0):
         hl = self.hop_length // (4**scale)
         z = F.pad(z, (0, 0, 0, 1))
         z = F.pad(z, (2, 2))

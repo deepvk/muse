@@ -56,10 +56,10 @@ class TrainConfig:
     mushap_proba: float = 0.1
     mushap_depth: int = 2
 
-    #loss if there are artifacts while listening, then increase this params
-    factor: int = 1 
+    # loss if there are artifacts while listening, then increase this params
+    factor: int = 1
     c_factor: int = 1
-    loss_nfft: tuple = (4096, )
+    loss_nfft: tuple = (4096,)
     gamma: float = 0.3
     # lr
     lr: float = 0.5 * 3e-3
@@ -67,8 +67,9 @@ class TrainConfig:
 
     # lightning
     max_epochs: int = 100
-    precision: str = 16#"bf16-mixed"
+    precision: str = 16  # "bf16-mixed"
     grad_clip: float = 0.5
+
 
 @dataclass
 class InferenceConfig:
