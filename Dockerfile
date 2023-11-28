@@ -6,6 +6,7 @@ ENV NV_CUDNN_PACKAGE_NAME "libcudnn8"
 ENV NV_CUDNN_PACKAGE "$NV_CUDNN_PACKAGE_NAME=$NV_CUDNN_VERSION-1+cuda11.8"
 ENV DEBIAN_FRONTEND=noninteractive
 
+RUN apt-get -y update && apt-get -y upgrade && apt-get install -y --no-install-recommends ffmpeg
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ${NV_CUDNN_PACKAGE} \
     unzip \
@@ -15,7 +16,6 @@ RUN apt-get update -y \
     && apt-get install -y python3-pip
 RUN echo 'alias python=python3' >> ~/.bashrc
 RUN echo 'NCCL_SOCKET_IFNAME=lo' >> ~/.bashrc
-RUN apt-get install ffmpeg
 
 
 WORKDIR /app
