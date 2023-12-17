@@ -46,8 +46,7 @@ class Model_Unet(nn.Module):
 
         norm = self.__norm("InstanceNorm2d")
         act = self.__get_act("gelu")
-        if stft_flag:
-            self.stft = STFT(nfft)
+        self.stft = STFT(nfft)
         self.stft_flag = stft_flag
         self.conv_magnitude = nn.Conv2d(
             in_channels=stereo,
@@ -113,7 +112,8 @@ class Model_Unet(nn.Module):
             )
             channel *= 2
 
-        if bottlneck_lstm:
+        self.bottlneck_lstm = bottlneck_lstm
+        if self.bottlneck_lstm:
             self.bottleneck_magnitude = Bottleneck_v2(
                 input_channel=channel * (nfft // 2) // (2 ** (2 * depth)),
                 out_channel=channel,
@@ -189,7 +189,7 @@ class Model_Unet(nn.Module):
         return mean, std, x
 
     def forward(self, x: torch.Tensor):
-        if self.stft:
+        if self.stft_flag:
             z = self.stft.stft(x)
             length_wave = x.shape[-1]
         else:
@@ -249,6 +249,6 @@ class Model_Unet(nn.Module):
         imag = x_m * th.sin(x_p)
         real = x_m * th.cos(x_p)
         z = th.complex(real, imag)
-        if self.stft:
+        if self.stft_flag:
             return self.stft.istft(z, length_wave)
         return z

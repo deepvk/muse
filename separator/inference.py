@@ -81,16 +81,6 @@ class InferenceModel:
         return audios
 
     def separate_sources(self, mix, sample_rate):
-        """
-        Apply model to a given mixture. Use fade, and add segments together in order to add model segment by segment.
-
-        Args:
-            segment (int): segment length in seconds
-            device (torch.device, str, or None): if provided, device on which to
-                execute the computation, otherwise `mix.device` is assumed.
-                When `device` is different from `mix.device`, only local computations will
-                be on `device`, while the entire tracks will be stored on `mix.device`.
-        """
         device = self.config.device
         device = torch.device(device) if device else mix.device
 
