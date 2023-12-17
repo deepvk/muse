@@ -5,5 +5,5 @@ app=$PWD
 docker run --name pmunet -it --rm \
     --net=host --ipc=host \
     --gpus "all" \
-    -v "$app":/app \
+    -v ${app}:/app \
     pmunet
