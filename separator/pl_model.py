@@ -287,6 +287,9 @@ class PM_model(pl.LightningModule):
             "monitor": "valid_loss",
         }
 
+def init_weights(m):
+    if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+        torch.nn.init.xavier_uniform(m.weight)
 
 def main(config):
     from data.dataset import get_musdb_wav_datasets
@@ -331,7 +334,7 @@ def main(config):
     lr_monitor = LearningRateMonitor(logging_interval="step")
 
     mp_model = PM_model(config)
-
+    mp_model.model.apply(init_weights)
     trainer = pl.Trainer(
         accelerator="gpu" if config.device == "cuda" else "cpu",
         devices="auto",

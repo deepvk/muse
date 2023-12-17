@@ -38,13 +38,13 @@ class TrainConfig:
     # augments
     shift: int = 8192
     pitchshift_proba: float = 0.2
-    vocals_min_semitones: int = -10
-    vocals_max_semitones: int = 10
+    vocals_min_semitones: int = -5
+    vocals_max_semitones: int = 5
     other_min_semitones: int = -2
     other_max_semitones: int = 2
     pitchshift_flag_other: bool = False
     time_change_proba: float = 0.2
-    time_change_factors: tuple = (0.8, 0.85, 0.9, 0.95, 1.05, 1.1, 1.15, 1.2)
+    time_change_factors: tuple = (0.8, 0.85, 0.9, 0.95, 1.05, 1.1, 1.15, 1.2, 1.25, 1.3)
     remix_proba: float = 1
     remix_group_size: int = batch_size
     scale_proba: float = 1
@@ -53,7 +53,7 @@ class TrainConfig:
     fade_mask_proba: float = 0.1
     double_proba: float = 0.1
     reverse_proba: float = 0.2
-    mushap_proba: float = 0.1
+    mushap_proba: float = 0.0
     mushap_depth: int = 2
 
     # loss if there are artifacts while listening, then increase this params
