@@ -63,7 +63,8 @@ museval==0.4.1
 nest-asyncio
 networkx==3.1
 numba==0.57.1
-numpy==1.24.4
+numpy #==1.24.4
+nobuco
 nvidia-cublas-cu11==11.10.3.66
 nvidia-cuda-cupti-cu11==11.7.101
 nvidia-cuda-nvrtc-cu11==11.7.99
@@ -118,6 +119,7 @@ soxr==0.3.5
 stack-data
 stempeg==0.2.3
 sympy==1.12
+tensorflow>=2.13.0 #.*
 threadpoolctl==3.1.0
 toml
 torch==2.0.1
@@ -130,7 +132,7 @@ tornado
 tqdm==4.65.0
 traitlets
 triton==2.0.0
-typing_extensions==4.6.3
+typing_extensions>=4.6.1
 tzdata==2023.3
 urllib3==2.0.3
 wcwidth

@@ -1,9 +1,10 @@
 import argparse
+import gdown
 import importlib
 import numbers
-import numpy as np
-import time
+import shutil
 from typing import Tuple
+from pathlib import Path
 
 import torch
 import tensorflow as tf
@@ -26,13 +27,16 @@ def torch_glu(input, dim=1):
         return tf.multiply(out, gate)
     return lambda input, dim=1: tf_glu(input, dim)
 
+
 @nobuco.converter(torch.Tensor.all)
 def tensor_all(input: torch.Tensor):
     return lambda input: tf.math.reduce_all(input)
 
+
 @nobuco.converter(torch.atan2)
 def atan2(input_x: torch.Tensor, input_y: torch.Tensor):
     return lambda input_x, input_y: tf.math.atan2(input_x, input_y)
+
 
 @nobuco.converter(torch.Tensor.std)
 def tensor_std(input: torch.Tensor, dim, keepdim):
@@ -40,9 +44,11 @@ def tensor_std(input: torch.Tensor, dim, keepdim):
         input, axis=dim, keepdims=keepdim
     )
 
+
 @nobuco.converter(torch.Tensor.t)
 def tensor_t(input: torch.Tensor):
     return lambda input: tf.transpose(input)
+
 
 @nobuco.converter(torch.Tensor.__getattribute__)
 def torch_getattribute_complex_resolve(input: torch.Tensor, attr: str):
@@ -55,6 +61,7 @@ def torch_getattribute_complex_resolve(input: torch.Tensor, attr: str):
             tf_func = lambda x: getattr(x, attr)
         return tf_func(input)
     return tf_complex_getattribute
+
 
 @nobuco.converter(torch.nn.Conv2d)
 def converter_Conv2d(self, input: torch.Tensor):
@@ -78,10 +85,10 @@ def converter_Conv2d(self, input: torch.Tensor):
         params = [weights]
         use_bias = False
 
-    if (padding != 0 
-        and padding != (0, 0) 
-        and padding != 'valid' 
-        and padding != 'same'):
+    if (padding != 0 and
+            padding != (0, 0) and
+            padding != 'valid' and
+            padding != 'same'):
         pad_layer = tf.keras.layers.ZeroPadding2D(padding)
     else:
         pad_layer = None
@@ -104,6 +111,7 @@ def converter_Conv2d(self, input: torch.Tensor):
         output = conv(input)
         return output
     return func
+
 
 @nobuco.converter(torch.nn.Conv1d)
 def converter_Conv1d(self, input: torch.Tensor):
@@ -152,8 +160,9 @@ def converter_Conv1d(self, input: torch.Tensor):
         return output
     return func
 
+
 @nobuco.converter(
-    torch.concat, 
+    torch.concat,
     channel_ordering_strategy=ChannelOrderingStrategy.MINIMUM_TRANSPOSITIONS
 )
 def converter_concat(tensors: Tuple[torch.Tensor], dim):
@@ -162,57 +171,60 @@ def converter_concat(tensors: Tuple[torch.Tensor], dim):
     return tf_concat
 
 
-class OuterSTFT:
-    def __init__(self, length_wave, model):
-        self.length_wave = length_wave
-        self.model = model
-
-    def stft(self, wave):
-        return self.model.stft.stft(wave)
-
-    def istft(self, z):
-        return self.model.stft.istft(z, self.length_wave)
-    
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Converter script")
-
-    parser.add_argument(
-        "-I", dest="model_py_module",
-        help="py module of model\nformat: pkg.mod e.g model.PM_Unet",
-        default="model.PM_Unet", # TODO : put in the config
-        type=str
+def main(args, config):
+    try:
+        Path(config.original_model_dst).mkdir(exist_ok=False)
+    except FileExistsError:
+        shutil.rmtree(config.original_model_dst)
+    shutil.copytree(
+        config.original_model_src,
+        config.original_model_dst
     )
-    parser.add_argument(
-        "-C", dest="class_name",
-        help="class name of nn.Module",
-        default="Model_Unet",
-        type=str
-    )
-    parser.add_argument(
-        "-O", dest="out_dir",
-        help="specified output dir",
-        default="tflite_model",
-        type=str
-    )
-
-    args = parser.parse_args()
     py_module = importlib.import_module(args.model_py_module)
     cls_model = getattr(py_module, args.class_name)
-    
     model = cls_model(
         source=['drums', 'bass', 'other', 'vocals'],
         depth=4,
         channel=28,
         bottlneck_lstm=False,
-        # use_outer_stft=True
+        stft_flag=False,
     )
+
+    if model.bottlneck_lstm:
+        weights_path = config.weights_dir / "weight_LSTM.pt"
+        gdrive_id = config.gdrive_weights_LSTM_id
+    else:
+        weights_path = config.weights_dir / "weight_conv.pt"
+        gdrive_id = config.gdrive_weights_conv_id
+    try:
+        config.weights_dir.mkdir(parents=True, exist_ok=False)
+        download_weights = True
+    except FileExistsError:
+        try:
+            Path(weights_path).touch(exist_ok=False)
+            download_weights = True
+        except FileExistsError:
+            download_weights = False
+    if download_weights:
+        gdown.download(id=gdrive_id, output=str(weights_path))
+
     model.load_state_dict(torch.load(
-        'model_weight_conv.pt', # TODO : put in the config
+        str(weights_path),
         map_location=torch.device('cpu')
     ))
 
     model = model.eval()
+
+    class OuterSTFT:
+        def __init__(self, length_wave, model):
+            self.length_wave = length_wave
+            self.model = model
+
+        def stft(self, wave):
+            return self.model.stft.stft(wave)
+
+        def istft(self, z):
+            return self.model.stft.istft(z, self.length_wave)
 
     SEGMENT_WAVE = 44100
     dummy_wave = torch.rand(size=(1, 2, SEGMENT_WAVE))
@@ -224,7 +236,10 @@ if __name__ == "__main__":
         inputs_channel_order=ChannelOrder.PYTORCH,
     )
 
-    model_path = f"{args.out_dir}/{args.class_name}_outer_stft_{SEGMENT_WAVE / 44100:.1f}"
+    model_path = str(
+        args.out_dir +
+        f"/{args.class_name}_outer_stft_{SEGMENT_WAVE / 44100:.1f}"
+    )
 
     keras_model.save(model_path + '.h5')
     custom_objects = {'WeightLayer': WeightLayer}
@@ -241,3 +256,32 @@ if __name__ == "__main__":
 
     with open(model_path + '.tflite', 'wb') as f:
         f.write(tflite_model)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Converter script")
+    from config.config import ConverterConfig
+
+    config = ConverterConfig()
+
+    parser.add_argument(
+        "-I", dest="model_py_module",
+        help="py module of model\nformat: pkg.mod e.g model.PM_Unet",
+        default=config.model_py_module,
+        type=str
+    )
+    parser.add_argument(
+        "-C", dest="class_name",
+        help="class name of nn.Module",
+        default=config.model_class_name,
+        type=str
+    )
+    parser.add_argument(
+        "-O", dest="out_dir",
+        help="specified output dir",
+        default=config.tflite_model_dst,
+        type=str
+    )
+
+    args = parser.parse_args()
+    main(args, config)
