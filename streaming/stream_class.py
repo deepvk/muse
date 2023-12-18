@@ -1,14 +1,13 @@
+import importlib
+import os
+from pathlib import Path
+import shutil
 import tensorflow as tf
 import torch
 import torchaudio
 from torchaudio.io import StreamReader, StreamWriter
-
-import os
-
 from tqdm import tqdm
 from typing import Union
-
-from model.STFT import STFT
 
 
 class TFLiteTorchStream:
@@ -16,24 +15,35 @@ class TFLiteTorchStream:
 
     def __init__(
         self,
+        config,
         model_filename: str,
-        segment: int = 1,
-        sample_rate: int = 44100,
-        # STFT
-        nfft: int = 4096,
+        segment: float = 1
         ):
         self.__interpreter = tf.lite.Interpreter(
-            model_path=f"tfile_model/{model_filename}.tflite"
+            model_path=model_filename
         )
         self.__interpreter.allocate_tensors()
         self.__input_details = self.__interpreter.get_input_details()
         self.__output_details = self.__interpreter.get_output_details()
 
-        self.nfft = nfft
+        self.nfft = config.StreamConfig.nfft
         self.hop_length = self.nfft // 4
-        self.sample_rate = sample_rate
+        self.sample_rate = config.StreamConfig.sample_rate
         self.segment = segment
-        self.stft = STFT(nfft)
+
+        try:
+            Path(config.original_model_dst).mkdir(exist_ok=False)
+        except FileExistsError:
+            shutil.rmtree(config.original_model_dst)
+        shutil.copytree(
+            config.original_model_src,
+            config.original_model_dst
+        )
+        py_module = importlib.import_module(
+            config.StreamConfig.stft_py_module
+        )
+        cls_stft = getattr(py_module, "STFT")
+        self.stft = cls_stft(self.nfft)
 
     def __call__(
         self,

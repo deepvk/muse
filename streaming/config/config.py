@@ -13,3 +13,14 @@ class ConverterConfig:
     model_py_module: str = "model.PM_Unet"
     model_class_name: str = "Model_Unet"
     tflite_model_dst: str = "tflite_model"
+
+
+@dataclass
+class StreamConfig:
+    sample_rate: int = 44100
+    nfft: int = 4096
+    stft_py_module: str = "model.STFT"
+    default_input_path: str = "/app/streaming/input"
+    default_result_dir: str = "/app/streaming/streams"
+    gdrive_mix_id: str = "1zJpyW1fYxHKXDcDH9s5DiBCYiRpraDB3"
+    default_duration: int = 15
