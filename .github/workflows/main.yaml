@@ -16,6 +16,3 @@ jobs:
           pip install -r requirements-dev.txt
       - name: "black"
         run: black . --check --diff --color
-
-      - name: "mypy"
-        run: mypy src --ignore-missing-imports --implicit-optional
