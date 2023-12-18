@@ -51,16 +51,23 @@ compositions
     - `-I` specify path to mixture, 
     - `-O` output dir, both of them optional. 
     
-By default script loads `.pt` file with weigths and `sample.wav` from google drive.
+By default script loads `.pt` file with weights and `sample.wav` from google drive.
 
 #### For example
 ``` 
 python3 inference.py -I path/to/mix -O out_dir
 ```
-With successfull script run four audio files (`vocals.wav` and `drums.wav`, `bass.wav`, `other.wav`) will be in `out_dir`. By default in `separator/inference/output`.
+With successful script run four audio files (`vocals.wav` and `drums.wav`, `bass.wav`, `other.wav`) will be in `out_dir`. By default in `separator/inference/output`.
 
 **You can download weights manually**
 
 Download one the .pt file below:
  * [LSTM-bottleneck version](https://drive.google.com/file/d/18jT2TYffdRD1fL7wecAiM5nJPM_OKpNB/view?usp=drive_link)
  * [WIthout LSTM-bottleneck version](https://drive.google.com/file/d/1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7/view?usp=drive_link)
+
+ ### Streaming
+ In streaming section located scripts for: convert model to `tflite` format and run `tflite` model in `"stream mode"`.
+
+1. Configure arguments in `streaming/config/config.py`.
+2. `cd streaming`.
+3. `python3 runner.py`
