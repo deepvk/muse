@@ -17,7 +17,7 @@ from nobuco.layers.weight import WeightLayer
 
 @nobuco.converter(
     torch.nn.functional.glu,
-    channel_ordering_strategy=ChannelOrderingStrategy.MINIMUM_TRANSPOSITIONS
+    channel_ordering_strategy=ChannelOrderingStrategy.MINIMUM_TRANSPOSITIONS,
 )
 def torch_glu(input, dim=1):
     def tf_glu(input, dim=1):
@@ -25,6 +25,7 @@ def torch_glu(input, dim=1):
         out, gate = tf.split(input, 2, axis=ax)
         gate = tf.sigmoid(gate)
         return tf.multiply(out, gate)
+
     return lambda input, dim=1: tf_glu(input, dim)
 
 
@@ -60,6 +61,7 @@ def torch_getattribute_complex_resolve(input: torch.Tensor, attr: str):
         else:
             tf_func = lambda x: getattr(x, attr)
         return tf_func(input)
+
     return tf_complex_getattribute
 
 
@@ -85,15 +87,12 @@ def converter_Conv2d(self, input: torch.Tensor):
         params = [weights]
         use_bias = False
 
-    if (padding != 0 and
-            padding != (0, 0) and
-            padding != 'valid' and
-            padding != 'same'):
+    if padding != 0 and padding != (0, 0) and padding != "valid" and padding != "same":
         pad_layer = tf.keras.layers.ZeroPadding2D(padding)
     else:
         pad_layer = None
 
-    pad_arg = padding if padding == 'same' else 'valid'
+    pad_arg = padding if padding == "same" else "valid"
     conv = tf.keras.layers.Conv2D(
         filters=out_filters,
         kernel_size=(kh, kw),
@@ -102,7 +101,7 @@ def converter_Conv2d(self, input: torch.Tensor):
         dilation_rate=dilation,
         groups=groups,
         use_bias=use_bias,
-        weights=params
+        weights=params,
     )
 
     def func(input):
@@ -110,6 +109,7 @@ def converter_Conv2d(self, input: torch.Tensor):
             input = pad_layer(input)
         output = conv(input)
         return output
+
     return func
 
 
@@ -136,12 +136,12 @@ def converter_Conv1d(self, input: torch.Tensor):
 
     if isinstance(padding, numbers.Number):
         padding = (padding,)
-    if padding != (0,) and padding != 'valid' and padding != 'same':
+    if padding != (0,) and padding != "valid" and padding != "same":
         pad_layer = tf.keras.layers.ZeroPadding1D(padding[0])
     else:
         pad_layer = None
 
-    pad_arg = padding if padding == 'same' else 'valid'
+    pad_arg = padding if padding == "same" else "valid"
     conv = tf.keras.layers.Conv1D(
         filters=out_filters,
         kernel_size=kw,
@@ -150,7 +150,7 @@ def converter_Conv1d(self, input: torch.Tensor):
         dilation_rate=dilation,
         groups=groups,
         use_bias=use_bias,
-        weights=params
+        weights=params,
     )
 
     def func(input):
@@ -158,16 +158,18 @@ def converter_Conv1d(self, input: torch.Tensor):
             input = pad_layer(input)
         output = conv(input)
         return output
+
     return func
 
 
 @nobuco.converter(
     torch.concat,
-    channel_ordering_strategy=ChannelOrderingStrategy.MINIMUM_TRANSPOSITIONS
+    channel_ordering_strategy=ChannelOrderingStrategy.MINIMUM_TRANSPOSITIONS,
 )
 def converter_concat(tensors: Tuple[torch.Tensor], dim):
     def tf_concat(tensors, dim):
         return tf.concat(list(tensors), -dim)
+
     return tf_concat
 
 
@@ -176,14 +178,11 @@ def main(args, config):
         Path(config.original_model_dst).mkdir(exist_ok=False)
     except FileExistsError:
         shutil.rmtree(config.original_model_dst)
-    shutil.copytree(
-        config.original_model_src,
-        config.original_model_dst
-    )
+    shutil.copytree(config.original_model_src, config.original_model_dst)
     py_module = importlib.import_module(args.model_py_module)
     cls_model = getattr(py_module, args.class_name)
     model = cls_model(
-        source=['drums', 'bass', 'other', 'vocals'],
+        source=["drums", "bass", "other", "vocals"],
         depth=4,
         channel=28,
         bottlneck_lstm=False,
@@ -208,10 +207,9 @@ def main(args, config):
     if download_weights:
         gdown.download(id=gdrive_id, output=str(weights_path))
 
-    model.load_state_dict(torch.load(
-        str(weights_path),
-        map_location=torch.device('cpu')
-    ))
+    model.load_state_dict(
+        torch.load(str(weights_path), map_location=torch.device("cpu"))
+    )
 
     model = model.eval()
 
@@ -232,29 +230,28 @@ def main(args, config):
 
     keras_model = nobuco.pytorch_to_keras(
         model,
-        args=[dummy_spectr], kwargs=None,
+        args=[dummy_spectr],
+        kwargs=None,
         inputs_channel_order=ChannelOrder.PYTORCH,
     )
 
     model_path = str(
-        args.out_dir +
-        f"/{args.class_name}_outer_stft_{SEGMENT_WAVE / 44100:.1f}"
+        args.out_dir + f"/{args.class_name}_outer_stft_{SEGMENT_WAVE / 44100:.1f}"
     )
 
-    keras_model.save(model_path + '.h5')
-    custom_objects = {'WeightLayer': WeightLayer}
+    keras_model.save(model_path + ".h5")
+    custom_objects = {"WeightLayer": WeightLayer}
 
     converter = TFLiteConverter.from_keras_model_file(
-        model_path + '.h5',
-        custom_objects=custom_objects
+        model_path + ".h5", custom_objects=custom_objects
     )
     converter.target_ops = [
         tf.lite.OpsSet.SELECT_TF_OPS,
-        tf.lite.OpsSet.TFLITE_BUILTINS
+        tf.lite.OpsSet.TFLITE_BUILTINS,
     ]
     tflite_model = converter.convert()
 
-    with open(model_path + '.tflite', 'wb') as f:
+    with open(model_path + ".tflite", "wb") as f:
         f.write(tflite_model)
 
 
@@ -265,22 +262,25 @@ if __name__ == "__main__":
     config = ConverterConfig()
 
     parser.add_argument(
-        "-I", dest="model_py_module",
+        "-I",
+        dest="model_py_module",
         help="py module of model\nformat: pkg.mod e.g model.PM_Unet",
         default=config.model_py_module,
-        type=str
+        type=str,
     )
     parser.add_argument(
-        "-C", dest="class_name",
+        "-C",
+        dest="class_name",
         help="class name of nn.Module",
         default=config.model_class_name,
-        type=str
+        type=str,
     )
     parser.add_argument(
-        "-O", dest="out_dir",
+        "-O",
+        dest="out_dir",
         help="specified output dir",
         default=config.tflite_model_dst,
-        type=str
+        type=str,
     )
 
     args = parser.parse_args()

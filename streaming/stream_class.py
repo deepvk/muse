@@ -13,15 +13,8 @@ from typing import Union
 class TFLiteTorchStream:
     NUM_CHANNELS = 2
 
-    def __init__(
-        self,
-        config,
-        model_filename: str,
-        segment: float = 1
-        ):
-        self.__interpreter = tf.lite.Interpreter(
-            model_path=model_filename
-        )
+    def __init__(self, config, model_filename: str, segment: float = 1):
+        self.__interpreter = tf.lite.Interpreter(model_path=model_filename)
         self.__interpreter.allocate_tensors()
         self.__input_details = self.__interpreter.get_input_details()
         self.__output_details = self.__interpreter.get_output_details()
@@ -35,22 +28,14 @@ class TFLiteTorchStream:
             Path(config.original_model_dst).mkdir(exist_ok=False)
         except FileExistsError:
             shutil.rmtree(config.original_model_dst)
-        shutil.copytree(
-            config.original_model_src,
-            config.original_model_dst
-        )
-        py_module = importlib.import_module(
-            config.StreamConfig.stft_py_module
-        )
+        shutil.copytree(config.original_model_src, config.original_model_dst)
+        py_module = importlib.import_module(config.StreamConfig.stft_py_module)
         cls_stft = getattr(py_module, "STFT")
         self.stft = cls_stft(self.nfft)
 
     def __call__(
-        self,
-        track_path: str,
-        out_dir: str,
-        duration: Union[int, None] = None
-        ):
+        self, track_path: str, out_dir: str, duration: Union[int, None] = None
+    ):
         _, sample_rate = torchaudio.load(track_path)
         if sample_rate != self.sample_rate:
             raise ValueError(f"Non supported sample_rate of {track_path=}")
@@ -58,8 +43,7 @@ class TFLiteTorchStream:
         stream_mix = StreamReader(src=track_path)
         frames_per_chunk = int(44100 * self.segment)
         stream_mix.add_basic_audio_stream(
-            frames_per_chunk=frames_per_chunk,
-            sample_rate=44100
+            frames_per_chunk=frames_per_chunk, sample_rate=44100
         )
 
         try:
@@ -79,30 +63,18 @@ class TFLiteTorchStream:
         stream_other = StreamWriter(dst=out_paths[2])
         stream_vocals = StreamWriter(dst=out_paths[3])
 
-        stream_drums.add_audio_stream(
-            sample_rate,
-            TFLiteTorchStream.NUM_CHANNELS
-        )
-        stream_bass.add_audio_stream(
-            sample_rate,
-            TFLiteTorchStream.NUM_CHANNELS
-        )
-        stream_other.add_audio_stream(
-            sample_rate,
-            TFLiteTorchStream.NUM_CHANNELS
-        )
-        stream_vocals.add_audio_stream(
-            sample_rate,
-            TFLiteTorchStream.NUM_CHANNELS
-        )
+        stream_drums.add_audio_stream(sample_rate, TFLiteTorchStream.NUM_CHANNELS)
+        stream_bass.add_audio_stream(sample_rate, TFLiteTorchStream.NUM_CHANNELS)
+        stream_other.add_audio_stream(sample_rate, TFLiteTorchStream.NUM_CHANNELS)
+        stream_vocals.add_audio_stream(sample_rate, TFLiteTorchStream.NUM_CHANNELS)
 
         chunk_count = int(sample_rate * duration // frames_per_chunk) if duration else 0
         with (
             stream_drums.open(),
             stream_bass.open(),
             stream_other.open(),
-            stream_vocals.open()
-            ):
+            stream_vocals.open(),
+        ):
             for i, chunk in tqdm(enumerate(stream_mix.stream())):
                 if duration and i > chunk_count:
                     break
@@ -110,7 +82,7 @@ class TFLiteTorchStream:
                 if processed_chunk.shape[-1] != int(44100 * self.segment):
                     continue
                 with torch.no_grad():
-                    out = self.model_call(processed_chunk).permute(0,1,3,2)
+                    out = self.model_call(processed_chunk).permute(0, 1, 3, 2)
 
                 stream_drums.write_audio_chunk(0, out[0][0])
                 stream_bass.write_audio_chunk(0, out[0][1])
@@ -123,15 +95,10 @@ class TFLiteTorchStream:
         length = mix.shape[-1]
         in_spectr = self.stft.stft(mix)
 
-        self.__interpreter.set_tensor(
-            self.__input_details[0]['index'],
-            in_spectr
-        )
+        self.__interpreter.set_tensor(self.__input_details[0]["index"], in_spectr)
         self.__interpreter.invoke()
 
-        out_spectr_tf = self.__interpreter.get_tensor(
-            self.__output_details[0]['index']
-        )
+        out_spectr_tf = self.__interpreter.get_tensor(self.__output_details[0]["index"])
         out_spectr = torch.tensor(out_spectr_tf, dtype=torch.cfloat)
 
         ret = self.stft.istft(out_spectr, length)

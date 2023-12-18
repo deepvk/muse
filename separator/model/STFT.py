@@ -91,7 +91,7 @@ class STFT:
         return z
 
     def istft(self, z: torch.Tensor, length: int = 0, scale: Optional[int] = 0):
-        hl = self.hop_length // (4**scale)
+        hl = self.hop_length // (4 ** scale)
         z = F.pad(z, (0, 0, 0, 1))
         z = F.pad(z, (2, 2))
         pad = hl // 2 * 3

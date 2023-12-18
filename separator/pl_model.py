@@ -287,9 +287,11 @@ class PM_model(pl.LightningModule):
             "monitor": "valid_loss",
         }
 
+
 def init_weights(m):
     if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
         torch.nn.init.xavier_uniform(m.weight)
+
 
 def main(config):
     from data.dataset import get_musdb_wav_datasets
