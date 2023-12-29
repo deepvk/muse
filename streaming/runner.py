@@ -36,7 +36,8 @@ def main(args, config):
     if start_converter:
         subprocess.Popen(
             ["python3", config.StreamConfig.converter_script],
-            executable="/bin/bash", shell=True
+            executable="/bin/bash",
+            shell=True,
         )
 
     converter_outputs = os.listdir(config.ConverterConfig.tflite_model_dst)

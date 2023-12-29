@@ -19,7 +19,7 @@ class STFT:
         value: float = 0.0,
     ):
         """
-        Tiny wrapper around F.pad, designed to allow reflect padding on small inputs. 
+        Tiny wrapper around F.pad, designed to allow reflect padding on small inputs.
         If the input is too small for reflect padding, we first add extra zero padding to the right before reflection occurs.
         """
         x0 = x

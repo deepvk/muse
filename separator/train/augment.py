@@ -25,10 +25,10 @@ class Shift(nn.Module):
     def forward(self, wav):
         if self.shift < 1:
             return wav
-        
+
         batch, sources, channels, time = wav.size()
         length = time - self.shift
-        
+
         if random.random() < self.proba:
             srcs = 1 if self.same else sources
             offsets = th.randint(self.shift, [batch, srcs, 1, 1], device=wav.device)
@@ -38,18 +38,17 @@ class Shift(nn.Module):
         return wav
 
 
-
 class FlipChannels(nn.Module):
     """
     Flip left-right channels.
     Args:
         proba (float): Probability of applying the flip left-right channels.
     """
+
     def __init__(self, proba=1):
         super().__init__()
         self.proba = proba
-        
-        
+
     def forward(self, wav):
         batch, sources, channels, time = wav.size()
         if wav.size(2) == 2:
@@ -67,12 +66,12 @@ class FlipSign(nn.Module):
     Args:
         proba (float): Probability of applying the sign flip.
     """
+
     def __init__(self, proba=1):
         super().__init__()
 
         self.proba = proba
-        
-        
+
     def forward(self, wav):
         batch, sources, channels, time = wav.size()
         if random.random() < self.proba:
@@ -90,8 +89,8 @@ class Remix(nn.Module):
         proba (float): Probability of applying the shuffle.
         group_size (int): Size of groups within which shuffling occurs.
     """
+
     def __init__(self, proba=1, group_size=4):
-        
         super().__init__()
         self.proba = proba
         self.group_size = group_size
@@ -124,8 +123,8 @@ class Scale(nn.Module):
         min (float): Minimum scaling factor.
         max (float): Maximum scaling factor.
     """
+
     def __init__(self, proba=1.0, min=0.25, max=1.25):
-        
         super().__init__()
         self.proba = proba
         self.min = min
@@ -152,7 +151,6 @@ class FadeMask(nn.Module):
     """
 
     def __init__(self, proba=1, sample_rate=44100, time_mask_param=2):
-        
         super().__init__()
         self.sample_rate = sample_rate
         self.time_mask = torchaudio.transforms.TimeMasking(
@@ -194,7 +192,6 @@ class PitchShift(nn.Module):  # input -> tensor
         sample_rate=44100,
         flag_other=False,
     ):
-        
         super().__init__()
         self.pitch_vocals = ps(
             p=proba,
@@ -231,8 +228,8 @@ class TimeChange(nn.Module):
         proba (float): Probability of applying the time change.
         sample_rate (int): Sample rate of audio.
     """
+
     def __init__(self, factors_list, proba=1, sample_rate=44100):
-        
         super().__init__()
         self.sample_rate = sample_rate
         self.proba = proba
@@ -248,7 +245,6 @@ class TimeChange(nn.Module):
         return wav
 
 
-
 class Double(nn.Module):
     """
     With equal probability, makes both channels the same as either the left or right original channel.
@@ -261,7 +257,6 @@ class Double(nn.Module):
         self.proba = proba
 
     def forward(self, wav):
-
         if random.random() < self.proba:
             wav = wav.clone()
 
@@ -285,11 +280,9 @@ class Reverse(nn.Module):
     Args:
         proba (float): Probability of applying the reversal.
         min_band_part (float): Minimum fraction of the track to be inverted.
-        max_band_part (float): Maximum fraction of the track to be inverted.
-"""
+        max_band_part (float): Maximum fraction of the track to be inverted."""
 
     def __init__(self, proba=1, min_band_part=0.2, max_band_part=0.4):
-        
         super().__init__()
         self.proba = proba
         self.min_band_part = min_band_part
@@ -321,8 +314,8 @@ class RemixWave(nn.Module):
         group_size (int): Group size for mashup.
         mix_depth (int): Number of tracks to mix.
     """
+
     def __init__(self, proba=1, group_size=4, mix_depth=2):
-        
         super().__init__()
         self.proba = proba
         self.remix = Remix(proba=1, group_size=group_size)

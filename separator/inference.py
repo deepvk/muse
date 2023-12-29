@@ -32,10 +32,14 @@ class InferenceModel:
 
     def resolve_weigths(self):
         if self.model_bottlneck_lstm:
-            self.weights_path = self.config.weights_dir / self.config.weights_LSTM_filename
+            self.weights_path = (
+                self.config.weights_dir / self.config.weights_LSTM_filename
+            )
             gdrive_url = self.config.gdrive_weights_LSTM
         else:
-            self.weights_path = self.config.weights_dir / self.config.weights_conv_filename
+            self.weights_path = (
+                self.config.weights_dir / self.config.weights_conv_filename
+            )
             gdrive_url = self.config.gdrive_weights_conv
 
         try:
@@ -69,7 +73,7 @@ class InferenceModel:
         # Do separation
         sources = self.separate_sources(mixture[None], sample_rate=sr)
 
-        # Denormalize 
+        # Denormalize
         sources = sources * ref.std() + ref.mean()
         sources_list = ["drums", "bass", "other", "vocals"]
         B, S, C, T = sources.shape
@@ -119,7 +123,9 @@ class InferenceModel:
             final[:, :, :, start:end] += separated_sources
 
             # Adjust the start and end for the next chunk, and update fade parameters
-            start, end = self.__update_chunk_indices(start, end, chunk_len, overlap_frames, length, fade)
+            start, end = self.__update_chunk_indices(
+                start, end, chunk_len, overlap_frames, length, fade
+            )
 
         return final
 

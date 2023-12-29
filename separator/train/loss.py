@@ -86,9 +86,9 @@ class SpectralLoss(nn.Module):
 
 class MultiResSpecLoss(nn.Module):
     """
-    Determines the discrepancies between the anticipated and actual spectrogram based on Short-Time Fourier Transform (STFT) 
+    Determines the discrepancies between the anticipated and actual spectrogram based on Short-Time Fourier Transform (STFT)
     with varying windows, utilizing the Mean Square Error (MSE) loss function for calculation.
-    We use Deep-FilterNet loss https://github.com/Rikorose/DeepFilterNet/blob/main/DeepFilterNet/df/loss.py#L95
+    We use loss from Deep-FilterNet https://github.com/Rikorose/DeepFilterNet/blob/main/DeepFilterNet/df/loss.py#L95
     """
 
     gamma: Final[float]

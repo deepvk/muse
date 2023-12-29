@@ -57,9 +57,9 @@ def get_musdb_wav_datasets(
 
     # Create a unique identifier for the dataset configuration.
     sig = hashlib.sha1(str(musdb).encode()).hexdigest()[:8]
-    
+
     metadata_file = Path(metadata) / f"musdb_{sig}.json"
-    root          = Path(musdb) / data_type
+    root = Path(musdb) / data_type
 
     # Build metadata if not already present.
     if not metadata_file.is_file():
@@ -72,7 +72,11 @@ def get_musdb_wav_datasets(
 
     # Filter tracks for training or validation based on the configuration.
     valid_tracks = _get_musdb_valid()  # Retrieve a list of valid track names.
-    metadata_train = metadata if train_valid else {name: meta for name, meta in metadata.items() if name not in valid_tracks}
+    metadata_train = (
+        metadata
+        if train_valid
+        else {name: meta for name, meta in metadata.items() if name not in valid_tracks}
+    )
 
     # Configure and return the dataset instance.
     data_set = Wavset(
@@ -144,7 +148,9 @@ class Wavset:
             if segment is None or track_duration < segment:
                 examples = 1
             else:
-                examples = int(math.ceil((track_duration - self.segment) / self.shift) + 1)
+                examples = int(
+                    math.ceil((track_duration - self.segment) / self.shift) + 1
+                )
             self.num_examples.append(examples)
 
     def __len__(self):
@@ -171,7 +177,7 @@ class Wavset:
 
             # Access metadata for the current source
             meta = self.metadata[name]
-            
+
             # Calculate offset and number of frames if segmenting is enabled
             num_frames, offset = -1, 0
             if self.segment is not None:
@@ -182,7 +188,9 @@ class Wavset:
             wavs = []
             for source in self.sources:
                 file_path = self.get_file(name, source)
-                wav, _ = ta.load(str(file_path), frame_offset=offset, num_frames=num_frames)
+                wav, _ = ta.load(
+                    str(file_path), frame_offset=offset, num_frames=num_frames
+                )
                 wav = self.__convert_audio_channels(wav, self.channels)
                 wavs.append(wav)
 
@@ -235,7 +243,9 @@ class Wavset:
             return wav.expand(*shape, desired_channels, length)
         else:
             # Invalid case: input has fewer channels than desired and is not mono
-            raise ValueError("Cannot upmix from fewer than 1 channel unless the source is mono.")
+            raise ValueError(
+                "Cannot upmix from fewer than 1 channel unless the source is mono."
+            )
 
 
 class MetaData:
@@ -272,7 +282,9 @@ class MetaData:
                 logging.error(f"{source_file} is invalid")
                 raise
 
-            length, sample_rate = MetaData.__validate_track(info, track_length, track_samplerate, source_file)
+            length, sample_rate = MetaData.__validate_track(
+                info, track_length, track_samplerate, source_file
+            )
             if track_length is None:
                 track_length, track_samplerate = length, sample_rate
 
@@ -345,9 +357,7 @@ class MetaData:
 
         would_clip = audio.abs().max() >= 1
         if would_clip:
-            assert (
-                ta.get_audio_backend() == "soundfile"
-            ), "use dset.backend=soundfile"
+            assert ta.get_audio_backend() == "soundfile", "use dset.backend=soundfile"
 
         return audio, sr
 

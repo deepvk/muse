@@ -236,7 +236,7 @@ def main(args, config):
     )
 
     model_filename = f"{args.class_name}_outer_stft_{config.segment_duration:.1f}"
-    model_path = args.out_dir + '/' + model_filename
+    model_path = args.out_dir + "/" + model_filename
 
     keras_model.save(model_path + ".h5")
     custom_objects = {"WeightLayer": WeightLayer}

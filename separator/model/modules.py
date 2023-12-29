@@ -16,6 +16,7 @@ class DownSample(nn.Module):
         activation (object): Activation layer.
         normalization (object): Normalization layer.
     """
+
     def __init__(
         self,
         input_channel,
@@ -26,7 +27,6 @@ class DownSample(nn.Module):
         activation,
         normalization,
     ):
-        
         super().__init__()
 
         self.conv_layer = nn.Sequential(
@@ -58,6 +58,7 @@ class UpSample(nn.Module):
         activation (object): Activation layer.
         normalization (object): Normalization layer.
     """
+
     def __init__(
         self,
         input_channel,
@@ -68,7 +69,6 @@ class UpSample(nn.Module):
         activation,
         normalization,
     ):
-        
         super().__init__()
 
         self.convT_layer = nn.Sequential(
@@ -97,8 +97,8 @@ class InceptionBlock(nn.Module):
         activation (object): Activation layer.
         normalization (object): Normalization layer.
     """
+
     def __init__(self, input_channel, out_channel, activation, normalization):
-        
         super().__init__()
 
         self.conv_layer_1 = nn.Sequential(
@@ -158,6 +158,7 @@ class Encoder(nn.Module):
         activation (object): Activation layer.
         normalization (object): Normalization layer.
     """
+
     def __init__(
         self,
         input_channel,
@@ -168,7 +169,6 @@ class Encoder(nn.Module):
         activation,
         normalization,
     ):
-        
         super().__init__()
 
         self.inception_layer = InceptionBlock(
@@ -202,6 +202,7 @@ class Decoder(nn.Module):
         activation (object): Activation layer.
         normalization (object): Normalization layer.
     """
+
     def __init__(
         self,
         input_channel,
@@ -212,7 +213,6 @@ class Decoder(nn.Module):
         activation,
         normalization,
     ):
-        
         super().__init__()
 
         self.inception_layer = InceptionBlock(
@@ -236,8 +236,8 @@ class Decoder(nn.Module):
 
 class BLSTM(nn.Module):
     """
-    A bidirectional LSTM (BiLSTM) module with the same number of hidden units as the input dimension. 
-    This module can process inputs in overlapping chunks if `max_steps` is specified. 
+    A bidirectional LSTM (BiLSTM) module with the same number of hidden units as the input dimension.
+    This module can process inputs in overlapping chunks if `max_steps` is specified.
     In this case, the input will be split into chunks, and the LSTM will be applied to each chunk separately.
     Args:
         dim (int): The number of dimensions in the input and the hidden state of the LSTM.
@@ -322,6 +322,7 @@ class Bottleneck_v2(nn.Module):
         activation (object): Activation layer.
         normalization (object): Normalization layer.
     """
+
     def __init__(
         self,
         input_channel,
@@ -334,14 +335,17 @@ class Bottleneck_v2(nn.Module):
         stride=1,
         padding="same",
     ):
-        
         super().__init__()
 
         self.conv_layer = nn.Sequential(
             normalization(input_channel, affine=True),
             activation,
             nn.Conv1d(
-                input_channel, out_channel, kernel_size=3, stride=stride, padding=padding
+                input_channel,
+                out_channel,
+                kernel_size=3,
+                stride=stride,
+                padding=padding,
             ),
         )
 
@@ -372,8 +376,8 @@ class Bottleneck(nn.Module):
         activation (object): Activation layer.
         normalization (object): Normalization layer.
     """
+
     def __init__(self, input_channel, out_channels, normalization, activation):
-        
         super().__init__()
 
         self.conv_layer_1 = nn.Sequential(

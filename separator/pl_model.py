@@ -14,6 +14,7 @@ from torchmetrics.functional.audio import (
     signal_distortion_ratio,
 )
 
+
 class PM_model(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
@@ -32,7 +33,7 @@ class PM_model(pl.LightningModule):
         )
 
         # loss
-        # Loss = (L_1 + L_{MRS} - L_{SISDR}) 
+        # Loss = (L_1 + L_{MRS} - L_{SISDR})
         self.criterion_1 = nn.L1Loss()
         self.criterion_2 = MultiResSpecLoss(
             factor=config.factor,
@@ -43,7 +44,9 @@ class PM_model(pl.LightningModule):
         self.criterion_3 = ScaleInvariantSignalDistortionRatio()
 
         # augment
-        self.augment = [augment.Shift(proba=config.proba_shift, shift=config.shift, same=True)]
+        self.augment = [
+            augment.Shift(proba=config.proba_shift, shift=config.shift, same=True)
+        ]
         self.augment += [
             augment.PitchShift(
                 proba=config.pitchshift_proba,
@@ -76,7 +79,7 @@ class PM_model(pl.LightningModule):
     def __init_weights(self, m):
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
             torch.nn.init.xavier_uniform(m.weight)
-    
+
     def __usdr(self, predT, tgtT, delta=1e-7):
         """
         latex: $usdr=10\log_{10} (\dfrac{\| tgtT\|^2 + \delta}{  \| predT - tgtT\| ^{2} + \delta})$
@@ -88,7 +91,6 @@ class PM_model(pl.LightningModule):
         usdr = 10 * torch.log10(num / den)
         return usdr.mean()
 
-
     def forward(self, x):
         x = self.model(x)
         return x
@@ -99,7 +101,7 @@ class PM_model(pl.LightningModule):
             self.criterion_1(y_pred, y_true)
             + self.criterion_2(y_pred, y_true)
             - self.criterion_3(y_pred, y_true)
-        )/3
+        ) / 3
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -122,7 +124,9 @@ class PM_model(pl.LightningModule):
 
         vocals_loss = self.loss(vocals_pred, vocals_target)
 
-        loss = 0.25 * (drums_loss + bass_loss + other_loss + vocals_loss) # losses averaged across sources
+        loss = 0.25 * (
+            drums_loss + bass_loss + other_loss + vocals_loss
+        )  # losses averaged across sources
 
         self.log_dict(
             {
@@ -179,18 +183,10 @@ class PM_model(pl.LightningModule):
 
         self.log_dict(
             {
-                "train_drums_usdr": self.__usdr(
-                    drums_pred, drums_target
-                ).mean(),
-                "train_bass_usdr": self.__usdr(
-                    bass_pred, bass_target
-                ).mean(),
-                "train_other_usdr": self.__usdr(
-                    other_pred, other_target
-                ).mean(),
-                "train_vocals_usdr": self.__usdr(
-                    vocals_pred, vocals_target
-                ).mean(),
+                "train_drums_usdr": self.__usdr(drums_pred, drums_target).mean(),
+                "train_bass_usdr": self.__usdr(bass_pred, bass_target).mean(),
+                "train_other_usdr": self.__usdr(other_pred, other_target).mean(),
+                "train_vocals_usdr": self.__usdr(vocals_pred, vocals_target).mean(),
             },
             on_epoch=True,
             prog_bar=False,
@@ -272,21 +268,12 @@ class PM_model(pl.LightningModule):
             sync_dist=True,
         )
 
-
         self.log_dict(
             {
-                "valid_drums_usdr": self.__usdr(
-                    drums_pred, drums_target
-                ).mean(),
-                "valid_bass_usdr": self.__usdr(
-                    bass_pred, bass_target
-                ).mean(),
-                "valid_other_usdr": self.__usdr(
-                    other_pred, other_target
-                ).mean(),
-                "valid_vocals_usdr": self.__usdr(
-                    vocals_pred, vocals_target
-                ).mean(),
+                "valid_drums_usdr": self.__usdr(drums_pred, drums_target).mean(),
+                "valid_bass_usdr": self.__usdr(bass_pred, bass_target).mean(),
+                "valid_other_usdr": self.__usdr(other_pred, other_target).mean(),
+                "valid_vocals_usdr": self.__usdr(vocals_pred, vocals_target).mean(),
             },
             on_epoch=True,
             prog_bar=False,
@@ -303,6 +290,7 @@ class PM_model(pl.LightningModule):
             "lr_scheduler": scheduler,
             "monitor": "valid_loss",
         }
+
 
 def main(config):
     from data.dataset import get_musdb_wav_datasets

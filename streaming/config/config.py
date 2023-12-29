@@ -17,7 +17,7 @@ class ConverterConfig:
     tflite_model_dst: str = "tflite_model"
 
     sample_rate: int = 44100
-    segment_duration: float = 1.
+    segment_duration: float = 1.0
 
 
 @dataclass
