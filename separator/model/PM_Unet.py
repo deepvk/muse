@@ -2,7 +2,6 @@ import torch
 import torch as th
 import torch.nn as nn
 from model.STFT import STFT
-from functools import partial
 from model.modules import Encoder, Decoder, Bottleneck_v2, Bottleneck
 from typing import List, Optional
 
@@ -22,20 +21,20 @@ class Model_Unet(nn.Module):
         stft_flag: bool = True,
     ):
         """
-        depth - (int) number of layers encoder and decoder
-        source - (list[str]) list of source names
-        channel - (int) initial number of hidden channels
-        is_mono - (bool) mono input/output audio channel
-        mask_mode - (bool) mask inference
-        skip_mode - (concat or add) types skip connection
-                concat: concatenates output encoder and decoder
-                add: add output encoder and decoder
-        nfft - (int) number of fft bins
-        bottlneck_lstm - (bool) lstm bottlneck
-                True: bottlneck_lstm - bilstm bottlneck
-                False: bottlneck_conv - convolution bottlneck
-        layers - (int) number bottlneck_lstm layers
-        stft_flag - (bool) use stft
+        depth (int): Number of layers in both the encoder and decoder.
+        source (list[str]): List of source names.
+        channel (int): Initial number of hidden channels.
+        is_mono (bool): Indicates whether the input/output audio channel is mono.
+        mask_mode (bool): Enables or disables mask inference.
+        skip_mode (str): Type of skip connection, either 'concat' or 'add'.
+            concat: Concatenates the outputs of the encoder and decoder.
+            add: Adds the outputs of the encoder and decoder.
+        nfft (int): Number of FFT (Fast Fourier Transform) bins.
+        bottleneck_lstm (bool): Determines the type of bottleneck to use.
+            True: Uses a BiLSTM (bidirectional Long Short-Term Memory) bottleneck.
+            False: Uses a convolutional bottleneck.
+        layers (int): Number of bottleneck LSTM layers.
+        stft_flag (bool): Indicates whether to use STFT (Short-Time Fourier Transform).
         """
         super().__init__()
         self.sources = source

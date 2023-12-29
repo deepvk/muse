@@ -36,7 +36,10 @@ class TrainConfig:
     layers: int = 2
     stft_flag: bool = True
     # augments
+    proba_shift: float = 0.5
     shift: int = 8192
+    proba_flip_channel: float = 1
+    proba_flip_sign: float = 1
     pitchshift_proba: float = 0.2
     vocals_min_semitones: int = -5
     vocals_max_semitones: int = 5

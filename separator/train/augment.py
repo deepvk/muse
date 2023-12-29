@@ -2,57 +2,80 @@ import random
 import torchaudio
 import torch as th
 from torch import nn
-from torch_audiomentations import PitchShift
+from torch_audiomentations import PitchShift as ps
 
 
 class Shift(nn.Module):
     """
-    Randomly shift audio in time by up to `shift` samples.
+    Shifts audio in time for data augmentation during training. Applies a random shift up to 'shift' samples.
+    If 'same' is True, all sources in a batch are shifted by the same amount; otherwise, each is shifted differently.
+
+    Args:
+        proba (float): Probability of applying the shift.
+        shift (int): Maximum number of samples for the shift. Defaults to 8192.
+        same (bool): Apply the same shift to all sources in a batch. Defaults to False.
     """
 
-    def __init__(self, shift=8192, same=False):
+    def __init__(self, proba=1, shift=8192, same=False):
         super().__init__()
         self.shift = shift
         self.same = same
+        self.proba = proba
 
     def forward(self, wav):
+        if self.shift < 1:
+            return wav
+        
         batch, sources, channels, time = wav.size()
         length = time - self.shift
-        if self.shift > 0:
-            if not self.training:
-                wav = wav[..., :length]
-            else:
-                srcs = 1 if self.same else sources
-                offsets = th.randint(self.shift, [batch, srcs, 1, 1], device=wav.device)
-                offsets = offsets.expand(-1, sources, channels, -1)
-                indexes = th.arange(length, device=wav.device)
-                wav = wav.gather(3, indexes + offsets)
+        
+        if random.random() < self.proba:
+            srcs = 1 if self.same else sources
+            offsets = th.randint(self.shift, [batch, srcs, 1, 1], device=wav.device)
+            offsets = offsets.expand(-1, sources, channels, -1)
+            indexes = th.arange(length, device=wav.device)
+            wav = wav.gather(3, indexes + offsets)
         return wav
+
 
 
 class FlipChannels(nn.Module):
     """
     Flip left-right channels.
+    Args:
+        proba (float): Probability of applying the flip left-right channels.
     """
-
+    def __init__(self, proba=1):
+        super().__init__()
+        self.proba = proba
+        
+        
     def forward(self, wav):
         batch, sources, channels, time = wav.size()
-        if self.training and wav.size(2) == 2:
-            left = th.randint(2, (batch, sources, 1, 1), device=wav.device)
-            left = left.expand(-1, -1, -1, time)
-            right = 1 - left
-            wav = th.cat([wav.gather(2, left), wav.gather(2, right)], dim=2)
+        if wav.size(2) == 2:
+            if random.random() < self.proba:
+                left = th.randint(2, (batch, sources, 1, 1), device=wav.device)
+                left = left.expand(-1, -1, -1, time)
+                right = 1 - left
+                wav = th.cat([wav.gather(2, left), wav.gather(2, right)], dim=2)
         return wav
 
 
 class FlipSign(nn.Module):
     """
     Random sign flip.
+    Args:
+        proba (float): Probability of applying the sign flip.
     """
+    def __init__(self, proba=1):
+        super().__init__()
 
+        self.proba = proba
+        
+        
     def forward(self, wav):
         batch, sources, channels, time = wav.size()
-        if self.training:
+        if random.random() < self.proba:
             signs = th.randint(
                 2, (batch, sources, 1, 1), device=wav.device, dtype=th.float32
             )
@@ -62,15 +85,13 @@ class FlipSign(nn.Module):
 
 class Remix(nn.Module):
     """
-    Shuffle sources to make new mixes.
+    Randomly shuffles sources within each batch during training to create new mixes. Shuffling is performed within groups.
+    Args:
+        proba (float): Probability of applying the shuffle.
+        group_size (int): Size of groups within which shuffling occurs.
     """
-
     def __init__(self, proba=1, group_size=4):
-        """
-        Shuffle sources within one batch.
-        Each batch is divided into groups of size `group_size` and shuffling is done within
-        each group separatly.
-        """
+        
         super().__init__()
         self.proba = proba
         self.group_size = group_size
@@ -96,11 +117,15 @@ class Remix(nn.Module):
 
 
 class Scale(nn.Module):
+    """
+    Scales the amplitude of the audio waveform during training. The scaling factor is chosen randomly within a specified range.
+    Args:
+        proba (float): Probability of applying the scaling.
+        min (float): Minimum scaling factor.
+        max (float): Maximum scaling factor.
+    """
     def __init__(self, proba=1.0, min=0.25, max=1.25):
-        """
-        Args:
-            time_mask_param - maximum possible length seconds of the mask
-        """
+        
         super().__init__()
         self.proba = proba
         self.min = min
@@ -119,15 +144,15 @@ class Scale(nn.Module):
 
 class FadeMask(nn.Module):
     """
-    Apply masking to a spectrogram in the time domain.
-    https://pytorch.org/audio/main/generated/torchaudio.transforms.TimeMasking.html
+    Applies time-domain masking to the spectrogram for data augmentation.
+    Args:
+        proba (float): Probability of applying the mask.
+        sample_rate (int): Sample rate of the audio.
+        time_mask_param (int): Maximum possible length in seconds of the mask.
     """
 
     def __init__(self, proba=1, sample_rate=44100, time_mask_param=2):
-        """
-        Args:
-            time_mask_param - maximum possible length seconds of the mask
-        """
+        
         super().__init__()
         self.sample_rate = sample_rate
         self.time_mask = torchaudio.transforms.TimeMasking(
@@ -146,10 +171,17 @@ class FadeMask(nn.Module):
         return wav  # output -> tensor
 
 
-class PitchShift_f(nn.Module):  # input -> tensor
+class PitchShift(nn.Module):  # input -> tensor
     """
-    Pitch shift the sound up or down without changing the tempo.
-    https://github.com/asteroid-team/torch-audiomentations/blob/main/torch_audiomentations/augmentations/pitch_shift.py
+    Applies pitch shifting to audio sources. The pitch is shifted up or down without changing the tempo.
+    Args:
+        proba (float): Probability of applying the pitch shift.
+        min_semitones (int): Min shift for vocal source.
+        max_semitones (int): Max shift for vocal source.
+        min_semitones_other (int): Min shift for other sources.
+        max_semitones_other (int): Max shift for other sources.
+        sample_rate (int): Sample rate of audio.
+        flag_other (bool): Apply augmentation to other sources.
     """
 
     def __init__(
@@ -162,16 +194,9 @@ class PitchShift_f(nn.Module):  # input -> tensor
         sample_rate=44100,
         flag_other=False,
     ):
-        """
-        Args:
-            min_semitones - vocal source
-            max_semitones - vocals source
-            min_semitones_other - drums, bass, other source
-            max_semitones_other - drums, bass, other source
-            flag_other - apply augmentation other sources
-        """
+        
         super().__init__()
-        self.pitch_vocals = PitchShift(
+        self.pitch_vocals = ps(
             p=proba,
             min_transpose_semitones=min_semitones,
             max_transpose_semitones=max_semitones,
@@ -180,7 +205,7 @@ class PitchShift_f(nn.Module):  # input -> tensor
 
         self.flag_other = flag_other
         if flag_other:
-            self.pitch_other = PitchShift(
+            self.pitch_other = ps(
                 p=proba,
                 min_transpose_semitones=min_semitones_other,
                 max_transpose_semitones=max_semitones_other,
@@ -198,13 +223,16 @@ class PitchShift_f(nn.Module):  # input -> tensor
         return wav
 
 
-class TimeChange_f(nn.Module):
+class TimeChange(nn.Module):
     """
-    Changes the speed or duration of the signal without changing the pitch.
-    https://pytorch.org/audio/stable/generated/torchaudio.transforms.SpeedPerturbation.html
+    Changes the speed or duration of the signal without affecting the pitch.
+    Args:
+        factors_list (list): List of factors to adjust speed.
+        proba (float): Probability of applying the time change.
+        sample_rate (int): Sample rate of audio.
     """
-
     def __init__(self, factors_list, proba=1, sample_rate=44100):
+        
         super().__init__()
         self.sample_rate = sample_rate
         self.proba = proba
@@ -220,12 +248,12 @@ class TimeChange_f(nn.Module):
         return wav
 
 
-# new augment
-
 
 class Double(nn.Module):
     """
-    With equal probability makes both channels the same to left/right original channel.
+    With equal probability, makes both channels the same as either the left or right original channel.
+    Args:
+        proba (float): Probability of applying the doubling.
     """
 
     def __init__(self, proba=1):
@@ -233,7 +261,6 @@ class Double(nn.Module):
         self.proba = proba
 
     def forward(self, wav):
-        num_samples = wav.shape[-1]
 
         if random.random() < self.proba:
             wav = wav.clone()
@@ -254,15 +281,15 @@ class Double(nn.Module):
 
 class Reverse(nn.Module):
     """
-    Reverse (invert) the vocal source along the time axis
-    """
+    Reverses a segment of the vocal source along the time axis.
+    Args:
+        proba (float): Probability of applying the reversal.
+        min_band_part (float): Minimum fraction of the track to be inverted.
+        max_band_part (float): Maximum fraction of the track to be inverted.
+"""
 
     def __init__(self, proba=1, min_band_part=0.2, max_band_part=0.4):
-        """
-        Args:
-            min_band_part - minimum track share inversion
-            max_band_part - maximum track share inversion
-        """
+        
         super().__init__()
         self.proba = proba
         self.min_band_part = min_band_part
@@ -286,17 +313,16 @@ class Reverse(nn.Module):
         return wav
 
 
-class Remix_wave(nn.Module):
+class RemixWave(nn.Module):
     """
-    Mashup track in group
+    Creates a mashup track within a batch.
+    Args:
+        proba (float): Probability of applying the mashup.
+        group_size (int): Group size for mashup.
+        mix_depth (int): Number of tracks to mix.
     """
-
     def __init__(self, proba=1, group_size=4, mix_depth=2):
-        """
-        Args:
-            group_size - group size
-            mix_depth - number mashup track
-        """
+        
         super().__init__()
         self.proba = proba
         self.remix = Remix(proba=1, group_size=group_size)
@@ -304,8 +330,6 @@ class Remix_wave(nn.Module):
 
     def forward(self, wav):
         if random.random() < self.proba:
-            batch, streams, channels, time = wav.size()
-            device = wav.device
             mix = wav.clone()
             for i in range(self.mix_depth):
                 mix += self.remix(wav)
@@ -314,9 +338,11 @@ class Remix_wave(nn.Module):
             return wav
 
 
-class Remix_channel(nn.Module):
+class RemixChannel(nn.Module):
     """
-    Shuffle sources channels within one batch
+    Shuffles source channels within a batch.
+    Args:
+        proba (float): Probability of applying the channel shuffle.
     """
 
     def __init__(self, proba=1):
@@ -326,7 +352,6 @@ class Remix_channel(nn.Module):
 
     def forward(self, wav):
         batch, streams, channels, time = wav.size()
-        device = wav.device
         if self.training and random.random() < self.proba:
             drums = wav[:, 0].reshape(-1, time)
             bass = wav[:, 1].reshape(-1, time)

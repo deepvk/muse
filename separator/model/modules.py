@@ -1,11 +1,21 @@
 import torch
-import torch as th
 import torch.nn as nn
 import math
 from torch.nn import functional as F
 
 
 class DownSample(nn.Module):
+    """
+    DownSample - dimensionality reduction block that includes layer normalization, activation layer, and Conv2d layer.
+    Args:
+        input_channel (int): Number of input channels.
+        out_channel (int): Number of output channels.
+        scale (int, tuple): Kernel size.
+        stride (int, tuple): Stride of the convolution.
+        padding (int, tuple or str): Padding added to all four sides of the input.
+        activation (object): Activation layer.
+        normalization (object): Normalization layer.
+    """
     def __init__(
         self,
         input_channel,
@@ -16,13 +26,7 @@ class DownSample(nn.Module):
         activation,
         normalization,
     ):
-        """
-        DownSample - block include layer normalization, layer activation and Conv2d layer
-        Args:
-            scale - kernel size
-            activation - activation layer
-            normalization - normalization layer
-        """
+        
         super().__init__()
 
         self.conv_layer = nn.Sequential(
@@ -43,6 +47,17 @@ class DownSample(nn.Module):
 
 
 class UpSample(nn.Module):
+    """
+    UpSample - dimensionality boosting block that includes layer normalization, activation layer, and Conv2d layer.
+    Args:
+        input_channel (int): Number of input channels.
+        out_channel (int): Number of output channels.
+        scale (int, tuple): Kernel size.
+        stride (int, tuple): Stride of the convolution.
+        padding (int, tuple or str): Padding added to all four sides of the input.
+        activation (object): Activation layer.
+        normalization (object): Normalization layer.
+    """
     def __init__(
         self,
         input_channel,
@@ -53,13 +68,7 @@ class UpSample(nn.Module):
         activation,
         normalization,
     ):
-        """
-        UpSample - block include layer normalization, layer activation and Conv2d layer
-        Args:
-            scale - kernel size
-            activation - activation layer
-            normalization - normalization layer
-        """
+        
         super().__init__()
 
         self.convT_layer = nn.Sequential(
@@ -80,12 +89,16 @@ class UpSample(nn.Module):
 
 
 class InceptionBlock(nn.Module):
-    def __init__(self, input_channel, out_channels, activation, normalization):
-        """InceptionBlock - The block includes 3 branches consisting of normalization layers, activation layers and 2d convolution with 1, 3 and 5 core sizes respectively.
-        Args:
-           activation - activation layer
-           normalization - normalization layer
-        """
+    """
+    InceptionBlock: This block comprises three branches, each consisting of normalization layers, activation layers, and 2D convolution layers. The convolution layers in each branch have kernel sizes of 1, 3, and 5, respectively.
+    Args:
+        input_channel (int): Number of input channels.
+        out_channel (int): Number of output channels.
+        activation (object): Activation layer.
+        normalization (object): Normalization layer.
+    """
+    def __init__(self, input_channel, out_channel, activation, normalization):
+        
         super().__init__()
 
         self.conv_layer_1 = nn.Sequential(
@@ -93,7 +106,7 @@ class InceptionBlock(nn.Module):
             activation,
             nn.Conv2d(
                 in_channels=input_channel,
-                out_channels=out_channels,
+                out_channels=out_channel,
                 kernel_size=1,
                 stride=1,
                 bias=False,
@@ -105,7 +118,7 @@ class InceptionBlock(nn.Module):
             activation,
             nn.Conv2d(
                 in_channels=input_channel,
-                out_channels=out_channels,
+                out_channels=out_channel,
                 kernel_size=3,
                 stride=1,
                 padding="same",
@@ -118,7 +131,7 @@ class InceptionBlock(nn.Module):
             activation,
             nn.Conv2d(
                 in_channels=input_channel,
-                out_channels=out_channels,
+                out_channels=out_channel,
                 kernel_size=5,
                 stride=1,
                 padding="same",
@@ -134,6 +147,17 @@ class InceptionBlock(nn.Module):
 
 
 class Encoder(nn.Module):
+    """
+    Encoder layer - Block included DownSample layer and InceptionBlock.
+    Args:
+        input_channel (int): Number of input channels.
+        out_channel (int): Number of output channels.
+        scale (int, tuple): The size of the kernel used in the DownSample layer.
+        stride (int, tuple): The stride used in the DownSample layer.
+        padding (int, tuple or str): Padding added to all four sides of the input.
+        activation (object): Activation layer.
+        normalization (object): Normalization layer.
+    """
     def __init__(
         self,
         input_channel,
@@ -144,15 +168,7 @@ class Encoder(nn.Module):
         activation,
         normalization,
     ):
-        """
-        Encoder layer - Block included DownSample layer and InceptionBlock.
-        Args:
-            scale - scale (kernel size) DownSample layer
-            stride - stride DownSample layer
-            padding - padding DownSample layer
-            activation - activation layer
-            normalization - normalization layer
-        """
+        
         super().__init__()
 
         self.inception_layer = InceptionBlock(
@@ -175,6 +191,17 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
+    """
+    Decoder layer - Block included UpSample layer and InceptionBlock.
+    Args:
+        input_channel (int): Number of input channels.
+        out_channel (int): Number of output channels.
+        scale (int, tuple): The size of the kernel used in the UpSample layer.
+        stride (int, tuple): The stride used in the UpSample layer.
+        padding (int, tuple or str): Padding added to all four sides of the input.
+        activation (object): Activation layer.
+        normalization (object): Normalization layer.
+    """
     def __init__(
         self,
         input_channel,
@@ -185,15 +212,7 @@ class Decoder(nn.Module):
         activation,
         normalization,
     ):
-        """
-        Decoder layer - Block included UpSample layer and InceptionBlock.
-        Args:
-            scale - scale (kernel size) UpSample layer
-            stride - stride UpSample layer
-            padding - padding UpSample layer
-            activation - activation layer
-            normalization - normalization layer
-        """
+        
         super().__init__()
 
         self.inception_layer = InceptionBlock(
@@ -217,9 +236,14 @@ class Decoder(nn.Module):
 
 class BLSTM(nn.Module):
     """
-    BiLSTM with same hidden units as input dim.
-    If `max_steps` is not None, input will be splitting in overlapping
-    chunks and the LSTM applied separately on each chunk.
+    A bidirectional LSTM (BiLSTM) module with the same number of hidden units as the input dimension. 
+    This module can process inputs in overlapping chunks if `max_steps` is specified. 
+    In this case, the input will be split into chunks, and the LSTM will be applied to each chunk separately.
+    Args:
+        dim (int): The number of dimensions in the input and the hidden state of the LSTM.
+        max_steps (int, optional): The maximum number of steps (length of chunks) for processing the input. Defaults to None.
+        skip (bool, optional): Flag to enable skip connections. Defaults to False.
+        layers (int): Number of recurrent layers
     """
 
     def __init__(self, dim, layers=1, max_steps=None, skip=False):
@@ -286,6 +310,18 @@ class BLSTM(nn.Module):
 
 
 class Bottleneck_v2(nn.Module):
+    """
+    Bottleneck - bi-lstm bottleneck
+    Args:
+        input_channel (int): Number of input channels.
+        out_channel (int): Number of output channels.
+        layers (int): number of recurrent layers
+        skip (bool): include skip conncetion bi-lstm
+        stride (int, tuple): The stride used in the Conv1d layer.
+        padding (int, tuple or str): Padding added to all four sides of the input.
+        activation (object): Activation layer.
+        normalization (object): Normalization layer.
+    """
     def __init__(
         self,
         input_channel,
@@ -296,25 +332,16 @@ class Bottleneck_v2(nn.Module):
         max_steps=200,
         skip=True,
         stride=1,
-        padding=1,
+        padding="same",
     ):
-        """
-        Bottleneck - bi-lstm bottleneck
-        Args:
-            activation - activation layer
-            normalization - normalization layer
-            layers - number of recurrent layers
-            skip - include skip conncetion bi-lstm
-            stride - stride Conv1d
-            padding - stride Conv1d
-        """
+        
         super().__init__()
 
         self.conv_layer = nn.Sequential(
             normalization(input_channel, affine=True),
             activation,
             nn.Conv1d(
-                input_channel, out_channel, kernel_size=3, stride=stride, padding="same"
+                input_channel, out_channel, kernel_size=3, stride=stride, padding=padding
             ),
         )
 
@@ -337,10 +364,16 @@ class Bottleneck_v2(nn.Module):
 
 
 class Bottleneck(nn.Module):
+    """
+    Bottleneck - convolution bottleneck
+    Args:
+        input_channel (int): Number of input channels.
+        out_channel (int): Number of output channels.
+        activation (object): Activation layer.
+        normalization (object): Normalization layer.
+    """
     def __init__(self, input_channel, out_channels, normalization, activation):
-        """
-        Bottleneck - convolution bottleneck
-        """
+        
         super().__init__()
 
         self.conv_layer_1 = nn.Sequential(
@@ -376,7 +409,7 @@ class Bottleneck(nn.Module):
                 in_channels=out_channels,
                 out_channels=out_channels,
                 kernel_size=1,
-                stride=1,  # padding='same',
+                stride=1,
                 bias=False,
             ),
         )

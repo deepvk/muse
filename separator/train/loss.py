@@ -1,6 +1,5 @@
 import warnings
-from collections import defaultdict
-from typing import Dict, Final, Iterable, List, Literal, Optional, Tuple, Union
+from typing import Dict, Final, Iterable, List, Optional, Union
 
 import torch
 import torch as th
@@ -59,9 +58,9 @@ class Stft(nn.Module):
 
 class SpectralLoss(nn.Module):
     """
-    L1 between target magnitude and predicted magnitude
-    L1 between target phase and predicted phase
-    L1(target magnitude, predicted magnitude) + L1(target phase, predicted phase)
+    Calculates the L1 loss between the target and predicted magnitudes, and between the target and predicted phases.
+    The total loss is the sum of L1 loss for magnitude and L1 loss for phase:
+    L1(target magnitude, predicted magnitude) + L1(target phase, predicted phase).
     """
 
     def __init__(self, n_fft=4096):
@@ -87,8 +86,9 @@ class SpectralLoss(nn.Module):
 
 class MultiResSpecLoss(nn.Module):
     """
-    Deep-FilterNet loss
-    https://github.com/Rikorose/DeepFilterNet/blob/main/DeepFilterNet/df/loss.py#L95
+    Determines the discrepancies between the anticipated and actual spectrogram based on Short-Time Fourier Transform (STFT) 
+    with varying windows, utilizing the Mean Square Error (MSE) loss function for calculation.
+    We use Deep-FilterNet loss https://github.com/Rikorose/DeepFilterNet/blob/main/DeepFilterNet/df/loss.py#L95
     """
 
     gamma: Final[float]

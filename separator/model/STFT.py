@@ -18,8 +18,9 @@ class STFT:
         mode: str = "constant",
         value: float = 0.0,
     ):
-        """Tiny wrapper around F.pad, just to allow for reflect padding on small input.
-        If this is the case, we insert extra 0 padding to the right before the reflection happen.
+        """
+        Tiny wrapper around F.pad, designed to allow reflect padding on small inputs. 
+        If the input is too small for reflect padding, we first add extra zero padding to the right before reflection occurs.
         """
         x0 = x
         length = x.shape[-1]
