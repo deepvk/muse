@@ -6,7 +6,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from stream_class import TFLiteTorchStream
+from tf_lite_stream import TFLiteTorchStream
 
 
 def resolve_default_sample(config):
