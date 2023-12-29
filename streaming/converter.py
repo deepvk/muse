@@ -190,10 +190,10 @@ def main(args, config):
     )
 
     if model.bottlneck_lstm:
-        weights_path = config.weights_dir / "weight_LSTM.pt"
+        weights_path = config.weights_dir / config.weights_LSTM_filename
         gdrive_id = config.gdrive_weights_LSTM_id
     else:
-        weights_path = config.weights_dir / "weight_conv.pt"
+        weights_path = config.weights_dir / config.weights_conv_filename
         gdrive_id = config.gdrive_weights_conv_id
     try:
         config.weights_dir.mkdir(parents=True, exist_ok=False)
@@ -224,7 +224,7 @@ def main(args, config):
         def istft(self, z):
             return self.model.stft.istft(z, self.length_wave)
 
-    SEGMENT_WAVE = 44100
+    SEGMENT_WAVE = config.sample_rate * config.segment_duration
     dummy_wave = torch.rand(size=(1, 2, SEGMENT_WAVE))
     dummy_spectr = OuterSTFT(SEGMENT_WAVE, model).stft(dummy_wave)
 
@@ -235,9 +235,8 @@ def main(args, config):
         inputs_channel_order=ChannelOrder.PYTORCH,
     )
 
-    model_path = str(
-        args.out_dir + f"/{args.class_name}_outer_stft_{SEGMENT_WAVE / 44100:.1f}"
-    )
+    model_filename = f"{args.class_name}_outer_stft_{config.segment_duration:.1f}"
+    model_path = args.out_dir + '/' + model_filename
 
     keras_model.save(model_path + ".h5")
     custom_objects = {"WeightLayer": WeightLayer}

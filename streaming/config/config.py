@@ -5,6 +5,8 @@ from pathlib import Path
 @dataclass
 class ConverterConfig:
     weights_dir: Path = Path("/app/streaming/weights")
+    weights_LSTM_filename: str = "weight_LSTM.pt"
+    weights_conv_filename: str = "weight_conv.pt"
     gdrive_weights_LSTM_id: str = "18jT2TYffdRD1fL7wecAiM5nJPM_OKpNB"
     gdrive_weights_conv_id: str = "1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7"
 
@@ -14,9 +16,13 @@ class ConverterConfig:
     model_class_name: str = "Model_Unet"
     tflite_model_dst: str = "tflite_model"
 
+    sample_rate: int = 44100
+    segment_duration: float = 1.
+
 
 @dataclass
 class StreamConfig:
+    converter_script: str = "/app/streaming/converter.py"
     sample_rate: int = 44100
     nfft: int = 4096
     stft_py_module: str = "model.STFT"
