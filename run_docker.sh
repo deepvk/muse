@@ -1,6 +1,6 @@
 #!/bin/bash
 
-app=$PWD
+app=$(pwd)
 
 docker run --name pmunet -it --rm \
     --net=host --ipc=host \

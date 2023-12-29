@@ -1,4 +1,6 @@
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 import hashlib
 import math
 import json
@@ -10,52 +12,69 @@ import logging
 import musdb
 import julius
 import torch as th
-from torch import distributed
 import torchaudio as ta
 from torch.nn import functional as F
 
 
+@dataclass
 class File:
-    MIXTURE = "mixture"
-    EXT = ".wav"
+    MIXTURE: str = "mixture"
+    EXT: str = ".wav"
 
 
 def get_musdb_wav_datasets(
     musdb="musdb18hq",
-    musdb_samplerate=44100,
-    use_musdb=True,
     segment=11,
     shift=1,
     train_valid=False,
-    full_cv=True,
     samplerate=44100,
     channels=2,
     normalize=True,
     metadata="./metadata",
     sources=["drums", "bass", "other", "vocals"],
-    backend=None,
     data_type="train",
 ):
     """
-    Extract the musdb dataset from the XP arguments.
+    Prepares and retrieves the MUSDB18-HQ dataset for audio source separation.
+
+    This function handles the dataset preparation by creating necessary metadata files and setting up the data loader configuration. It then returns a dataset instance ready for use in training or evaluation.
+
+    Args:
+        musdb (str): Path to the MUSDB18-HQ dataset directory.
+        segment (int): Length in seconds of each audio segment for processing.
+        shift (int): Stride in seconds between consecutive audio segments.
+        train_valid (bool): Flag to determine if training or validation data should be used.
+        samplerate (int): Target sample rate for audio processing.
+        channels (int): Number of audio channels (e.g., 1 for mono, 2 for stereo).
+        normalize (bool): Whether to normalize audio based on the entire track.
+        metadata (str): Path for saving the generated metadata.
+        sources (list[str]): List of source names to be included in the dataset.
+        data_type (str): Type of data to process ('train' or 'test').
+
+    Returns:
+        Wavset: An instance of the Wavset class configured for the specified dataset.
     """
+
+    # Create a unique identifier for the dataset configuration.
     sig = hashlib.sha1(str(musdb).encode()).hexdigest()[:8]
-    metadata_file = Path(metadata) / ("musdb_" + sig + ".json")
-    root = Path(musdb) / data_type
+    
+    metadata_file = Path(metadata) / f"musdb_{sig}.json"
+    root          = Path(musdb) / data_type
+
+    # Build metadata if not already present.
     if not metadata_file.is_file():
-        metadata_file.parent.mkdir(exist_ok=True, parents=True)
-        metadata = MetaData.build_metadata(root, sources)
-        json.dump(metadata, open(metadata_file, "w"))
+        metadata_file.parent.mkdir(exist_ok=True)
+        metadata_content = MetaData.build_metadata(root, sources)
+        json.dump(metadata_content, open(metadata_file, "w"))
+
+    # Load metadata from the file.
     metadata = json.load(open(metadata_file))
 
-    valid_tracks = _get_musdb_valid()
-    if train_valid:
-        metadata_train = metadata
-    else:
-        metadata_train = {
-            name: meta for name, meta in metadata.items() if name not in valid_tracks
-        }
+    # Filter tracks for training or validation based on the configuration.
+    valid_tracks = _get_musdb_valid()  # Retrieve a list of valid track names.
+    metadata_train = metadata if train_valid else {name: meta for name, meta in metadata.items() if name not in valid_tracks}
 
+    # Configure and return the dataset instance.
     data_set = Wavset(
         root,
         metadata_train,
@@ -93,28 +112,22 @@ class Wavset:
         ext=File.EXT,
     ):
         """
-        Waveset (or mp3 set for that matter).
-        Can be used to train with arbitrary sources.
-        Each track should be one folder inside of `path`.
-        The folder should contain files named `{source}.{ext}`.
+        A dataset class for audio source separation, compatible with WAV (or MP3) files.
+        This class allows training with arbitrary sources, where each audio track is represented by a separate folder within the specified root directory. Each folder should contain audio files for different sources, named as `{source}.{ext}`.
 
         Args:
-            root (Path or str): root folder for the dataset.
-            metadata (dict): output from `build_metadata`.
-            sources (list[str]): list of source names.
-            segment (None or float): segment length in seconds.
-                If `None`, returns entire tracks.
-            shift (None or float): stride in seconds bewteen samples.
-            normalize (bool): normalizes input audio,
-                **based on the metadata content**,
-                i.e. the entire track is normalized, not individual extracts.
-            samplerate (int): target sample rate. if the file sample rate
-                is different, it will be resampled on the fly.
-            channels (int): target nb of channels. if different, will be
-                changed onthe fly.
-            ext (str): extension for audio files (default is .wav).
+            root (Path or str): The root directory of the dataset where audio tracks are stored.
+            metadata (dict): Metadata information generated by the `build_metadata` function. It contains details like track names and lengths.
+            sources (list[str]): A list of source names to be separated, e.g., ['drums', 'vocals'].
+            segment (Optional[float]): The length of each audio segment in seconds. If `None`, the entire track is used.
+            shift (Optional[float]): The stride in seconds between samples. Determines the overlap between consecutive audio segments.
+            normalize (bool): If True, normalizes the input audio based on the entire track's statistics, not just individual segments.
+            samplerate (int): The target sample rate. Audio files with a different sample rate will be resampled to this rate.
+            channels (int): The target number of audio channels. If different, audio will be converted accordingly.
+            ext (str): The file extension of the audio files, default is '.wav'.
 
-        samplerate and channels are converted on the fly.
+        Note:
+            The `samplerate` and `channels` parameters are used to ensure consistency across the dataset. They allow on-the-fly conversion of audio properties to match the target specifications.
         """
         self.root = Path(root)
         self.metadata = OrderedDict(metadata)
@@ -131,9 +144,7 @@ class Wavset:
             if segment is None or track_duration < segment:
                 examples = 1
             else:
-                examples = int(
-                    math.ceil((track_duration - self.segment) / self.shift) + 1
-                )
+                examples = int(math.ceil((track_duration - self.segment) / self.shift) + 1)
             self.num_examples.append(examples)
 
     def __len__(self):
@@ -143,82 +154,116 @@ class Wavset:
         return self.root / name / f"{source}{self.ext}"
 
     def __getitem__(self, index):
+        """
+        Get an audio example by index with applied transformations.
+
+        Args:
+            index (int): The index of the audio example in the dataset.
+
+        Returns:
+            Tensor: The processed audio example as a tensor.
+        """
+        # Iterate over each audio source and adjust the index for each source
         for name, examples in zip(self.metadata, self.num_examples):
             if index >= examples:
                 index -= examples
                 continue
+
+            # Access metadata for the current source
             meta = self.metadata[name]
-            num_frames = -1
-            offset = 0
+            
+            # Calculate offset and number of frames if segmenting is enabled
+            num_frames, offset = -1, 0
             if self.segment is not None:
                 offset = int(meta["samplerate"] * self.shift * index)
                 num_frames = int(math.ceil(meta["samplerate"] * self.segment))
+
+            # Load and process audio from each source
             wavs = []
             for source in self.sources:
-                file = self.get_file(name, source)
-                wav, _ = ta.load(str(file), frame_offset=offset, num_frames=num_frames)
+                file_path = self.get_file(name, source)
+                wav, _ = ta.load(str(file_path), frame_offset=offset, num_frames=num_frames)
                 wav = self.__convert_audio_channels(wav, self.channels)
                 wavs.append(wav)
 
+            # Stack, resample, and normalize the audio examples
             example = th.stack(wavs)
             example = julius.resample_frac(example, meta["samplerate"], self.samplerate)
             if self.normalize:
                 example = (example - meta["mean"]) / meta["std"]
+
+            # Pad the audio example if segmenting is used
             if self.segment:
                 length = int(self.segment * self.samplerate)
                 example = example[..., :length]
                 example = F.pad(example, (0, length - example.shape[-1]))
+
             return example
 
-    def __convert_audio_channels(self, wav, channels=2):
-        """Convert audio to the given number of channels."""
+    def __convert_audio_channels(self, wav, desired_channels=2):
+        """
+        Convert an audio waveform to the specified number of channels.
+
+        Args:
+            wav (Tensor): The input waveform tensor with shape (..., channels, length).
+            desired_channels (int, optional): The number of channels for the output waveform.
+                                            Defaults to 2 for stereo output.
+
+        Returns:
+            Tensor: The waveform with the desired number of channels.
+
+        Raises:
+            ValueError: If the input audio has fewer channels than requested and is not mono.
+
+        Description:
+            - If the input already has the desired number of channels, it is returned as is.
+            - If a mono to stereo conversion is needed, the mono channel is duplicated.
+            - If downmixing is needed (e.g., from 5.1 to stereo), only the first 'desired_channels' are kept.
+            - If upmixing is required (e.g., mono to 5.1), the single channel is replicated across all desired channels.
+        """
+
         *shape, src_channels, length = wav.shape
-        if src_channels == channels:
-            pass
-        elif channels == 1:
-            # Case 1:
-            # The caller asked 1-channel audio, but the stream have multiple
-            # channels, downmix all channels.
-            wav = wav.mean(dim=-2, keepdim=True)
+
+        if src_channels == desired_channels:
+            # No change needed
+            return wav
+        elif src_channels > desired_channels:
+            # Downmix by slicing to the desired number of channels
+            return wav[..., :desired_channels, :]
         elif src_channels == 1:
-            # Case 2:
-            # The caller asked for multiple channels, but the input file have
-            # one single channel, replicate the audio over all channels.
-            wav = wav.expand(*shape, channels, length)
-        elif src_channels >= channels:
-            # Case 3:
-            # The caller asked for multiple channels, and the input file have
-            # more channels than requested.
-            # In that case return the first channels.
-            wav = wav[..., :channels, :]
+            # Upmix by replicating the mono channel
+            return wav.expand(*shape, desired_channels, length)
         else:
-            # Case 4: What is a reasonable choice here?
-            raise ValueError(
-                "The audio file has less channels than requested \
-                    but is not mono."
-            )
-        return wav
+            # Invalid case: input has fewer channels than desired and is not mono
+            raise ValueError("Cannot upmix from fewer than 1 channel unless the source is mono.")
 
 
 class MetaData:
+    @staticmethod
     def __track_metadata(track, sources, normalize=True, ext=File.EXT):
-        track_length = None
-        track_samplerate = None
-        mean = 0
-        std = 1
+        """
+        Process and return the metadata for a single track.
+
+        Args:
+            track (Path): Path to the track directory.
+            sources (list[str]): List of sources to look for.
+            normalize (bool): If True, calculates normalization values.
+            ext (str): Extension of audio files.
+
+        Returns:
+            dict: Dictionary containing the track's metadata.
+
+        Raises:
+            RuntimeError: If an audio file is invalid.
+            ValueError: If audio files have inconsistent lengths or sample rates.
+        """
+        track_length, track_samplerate = None, None
+        mean, std = 0, 1
+
         for source in sources + [File.MIXTURE]:
             source_file = track / f"{source}{ext}"
             if source == File.MIXTURE and not source_file.exists():
-                audio = 0
-                for sub_source in sources:
-                    sub_file = track / f"{sub_source}{ext}"
-                    sub_audio, sr = ta.load(sub_file)
-                    audio += sub_audio
-                would_clip = audio.abs().max() >= 1
-                if would_clip:
-                    assert (
-                        ta.get_audio_backend() == "soundfile"
-                    ), "use dset.backend=soundfile"
+                audio, sr = MetaData.__create_mixture(track, sources, ext)
                 ta.save(source_file, audio, sr, encoding="PCM_F")
 
             try:
@@ -226,30 +271,13 @@ class MetaData:
             except RuntimeError:
                 logging.error(f"{source_file} is invalid")
                 raise
-            length = info.num_frames
+
+            length, sample_rate = MetaData.__validate_track(info, track_length, track_samplerate, source_file)
             if track_length is None:
-                track_length = length
-                track_samplerate = info.sample_rate
-            elif track_length != length:
-                raise ValueError(
-                    f"Invalid length for file {source_file}: "
-                    f"expecting {track_length} but got {length}."
-                )
-            elif info.sample_rate != track_samplerate:
-                raise ValueError(
-                    f"Invalid sample rate for file {source_file}: "
-                    f"expecting {track_samplerate} but got \
-                        {info.sample_rate}."
-                )
+                track_length, track_samplerate = length, sample_rate
+
             if source == File.MIXTURE and normalize:
-                try:
-                    wav, _ = ta.load(str(source_file))
-                except RuntimeError:
-                    logging.error(f"{source_file} is invalid")
-                    raise
-                wav = wav.mean(0)
-                mean = wav.mean().item()
-                std = wav.std().item()
+                mean, std = MetaData.__calculate_normalization(source_file)
 
         return {
             "length": length,
@@ -258,27 +286,28 @@ class MetaData:
             "samplerate": track_samplerate,
         }
 
+    @staticmethod
     def build_metadata(path, sources, normalize=True, ext=File.EXT):
         """
-        Build the metadata for `Wavset`.
+        Build and return the metadata for the entire dataset.
 
         Args:
-            path (str or Path): path to dataset.
-            sources (list[str]): list of sources to look for.
-            normalize (bool): if True, loads full track and store normalization
-                values based on the mixture file.
-            ext (str): extension of audio files (default is .wav).
-        """
+            path (str or Path): Path to the dataset.
+            sources (list[str]): List of sources to look for.
+            normalize (bool): If True, calculates normalization values.
+            ext (str): Extension of audio files.
 
+        Returns:
+            dict: Dictionary containing metadata for each track in the dataset.
+        """
         meta = {}
         path = Path(path)
         pendings = []
-        from concurrent.futures import ThreadPoolExecutor
 
         with ThreadPoolExecutor(8) as pool:
-            for root, folders, files in os.walk(path, followlinks=True):
+            for root, _, _ in os.walk(path, followlinks=True):
                 root = Path(root)
-                if root.name.startswith(".") or folders or root == path:
+                if root.name.startswith(".") or root == path:
                     continue
                 name = str(root.relative_to(path))
                 pendings.append(
@@ -292,4 +321,81 @@ class MetaData:
 
             for name, pending in tqdm.tqdm(pendings, ncols=120):
                 meta[name] = pending.result()
+
         return meta
+
+    @staticmethod
+    def __create_mixture(track, sources, ext):
+        """
+        Create and return the audio mixture from individual sources.
+
+        Args:
+            track (Path): Path to the track directory.
+            sources (list[str]): List of sources to look for.
+            ext (str): Extension of audio files.
+
+        Returns:
+            Tuple[Tensor, int]: The mixture audio tensor and its sample rate.
+        """
+        audio = 0
+        for sub_source in sources:
+            sub_file = track / f"{sub_source}{ext}"
+            sub_audio, sr = ta.load(sub_file)
+            audio += sub_audio
+
+        would_clip = audio.abs().max() >= 1
+        if would_clip:
+            assert (
+                ta.get_audio_backend() == "soundfile"
+            ), "use dset.backend=soundfile"
+
+        return audio, sr
+
+    @staticmethod
+    def __validate_track(info, track_length, track_samplerate, source_file):
+        """
+        Validate the track's length and sample rate.
+
+        Args:
+            info (AudioMetaData): Metadata of the audio file.
+            track_length (int): Expected length of the track.
+            track_samplerate (int): Expected sample rate of the track.
+            source_file (Path): Path to the source file.
+
+        Returns:
+            Tuple[int, int]: Length and sample rate of the track.
+
+        Raises:
+            ValueError: If the track's length or sample rate is inconsistent.
+        """
+        length = info.num_frames
+        if track_length is not None and track_length != length:
+            raise ValueError(
+                f"Invalid length for file {source_file}: "
+                f"expecting {track_length} but got {length}."
+            )
+        elif track_samplerate is not None and info.sample_rate != track_samplerate:
+            raise ValueError(
+                f"Invalid sample rate for file {source_file}: "
+                f"expecting {track_samplerate} but got {info.sample_rate}."
+            )
+        return length, info.sample_rate
+
+    @staticmethod
+    def __calculate_normalization(source_file):
+        """
+        Calculate and return the mean and standard deviation for normalization.
+
+        Args:
+            source_file (Path): Path to the source file.
+
+        Returns:
+            Tuple[float, float]: Mean and standard deviation of the waveform.
+        """
+        try:
+            wav, _ = ta.load(str(source_file))
+        except RuntimeError:
+            logging.error(f"{source_file} is invalid")
+            raise
+        wav = wav.mean(0)
+        return wav.mean().item(), wav.std().item()

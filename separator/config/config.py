@@ -79,6 +79,8 @@ class InferenceConfig:
 
     # weights
     weights_dir: Path = Path("/app/separator/inference/weights")
+    weights_LSTM_filename: str = "weight_LSTM.pt"
+    weights_conv_filename: str = "weight_conv.pt"
     gdrive_weights_LSTM: str = f"{GDRIVE_PREFIX}18jT2TYffdRD1fL7wecAiM5nJPM_OKpNB"
     gdrive_weights_conv: str = f"{GDRIVE_PREFIX}1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7"
 

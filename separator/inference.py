@@ -32,10 +32,10 @@ class InferenceModel:
 
     def resolve_weigths(self):
         if self.model_bottlneck_lstm:
-            self.weights_path = self.config.weights_dir / "weight_LSTM.pt"
+            self.weights_path = self.config.weights_dir / self.config.weights_LSTM_filename
             gdrive_url = self.config.gdrive_weights_LSTM
         else:
-            self.weights_path = self.config.weights_dir / "weight_conv.pt"
+            self.weights_path = self.config.weights_dir / self.config.weights_conv_filename
             gdrive_url = self.config.gdrive_weights_conv
 
         try:
@@ -62,11 +62,14 @@ class InferenceModel:
         end = sr * (offset + duration) if duration else None
         mixture = waveform[:, start:end]
 
+        # Normalize
         ref = mixture.mean(0)
-        mixture = (mixture - ref.mean()) / ref.std()  # normalization
+        mixture = (mixture - ref.mean()) / ref.std()
 
+        # Do separation
         sources = self.separate_sources(mixture[None], sample_rate=sr)
 
+        # Denormalize 
         sources = sources * ref.std() + ref.mean()
         sources_list = ["drums", "bass", "other", "vocals"]
         B, S, C, T = sources.shape
@@ -81,42 +84,71 @@ class InferenceModel:
         return audios
 
     def separate_sources(self, mix, sample_rate):
-        device = self.config.device
-        device = torch.device(device) if device else mix.device
+        """
+        Separates the audio mix into its constituent sources.
 
+        Args:
+            mix (Tensor): The input mixed audio signal tensor of shape (batch, channels, length).
+            sample_rate (int): The sample rate of the audio signal.
+
+        Returns:
+            Tensor: The separated audio sources as a tensor.
+        """
+        # Set the device based on the configuration or input mix
+        device = torch.device(self.config.device) if self.config.device else mix.device
+
+        # Get the shape of the input mix
         batch, channels, length = mix.shape
 
+        # Calculate chunk length for processing and overlap frames
         chunk_len = int(sample_rate * self.segment * (1 + self.overlap))
-        start = 0
-        end = chunk_len
-        overlap_frames = self.overlap * sample_rate
-        fade = Fade(
-            fade_in_len=0, fade_out_len=int(overlap_frames), fade_shape="linear"
-        )
+        overlap_frames = int(self.overlap * sample_rate)
+        fade = Fade(fade_in_len=0, fade_out_len=overlap_frames, fade_shape="linear")
 
-        final = torch.zeros(
-            batch,
-            len(["drums", "bass", "other", "vocals"]),
-            channels,
-            length,
-            device=device,
-        )
+        # Initialize the tensor to hold the final separated sources
+        num_sources = 4  # ["drums", "bass", "other", "vocals"]
+        final = torch.zeros(batch, num_sources, channels, length, device=device)
 
+        start, end = 0, chunk_len
         while start < length - overlap_frames:
+            # Process each chunk with model and apply fade
             chunk = mix[:, :, start:end]
             with torch.no_grad():
-                out = self.model.forward(chunk)
-            out = fade(out)
-            final[:, :, :, start:end] += out
-            if start == 0:
-                fade.fade_in_len = int(overlap_frames)
-                start += int(chunk_len - overlap_frames)
-            else:
-                start += chunk_len
-            end += chunk_len
-            if end >= length:
-                fade.fade_out_len = 0
+                separated_sources = self.model.forward(chunk)
+            separated_sources = fade(separated_sources)
+            final[:, :, :, start:end] += separated_sources
+
+            # Adjust the start and end for the next chunk, and update fade parameters
+            start, end = self.__update_chunk_indices(start, end, chunk_len, overlap_frames, length, fade)
+
         return final
+
+    @staticmethod
+    def __update_chunk_indices(start, end, chunk_len, overlap_frames, length, fade):
+        """
+        Update the chunk indices for the next iteration and adjust fade parameters.
+
+        Args:
+            start (int): Current start index of the chunk.
+            end (int): Current end index of the chunk.
+            chunk_len (int): Length of each chunk.
+            overlap_frames (int): Number of overlapping frames.
+            length (int): Total length of the audio signal.
+            fade (Fade): The Fade object used for applying fade in/out.
+
+        Returns:
+            Tuple[int, int]: The updated start and end indices for the next chunk.
+        """
+        if start == 0:
+            fade.fade_in_len = overlap_frames
+            start += chunk_len - overlap_frames
+        else:
+            start += chunk_len
+
+        end = min(end + chunk_len, length)
+        fade.fade_out_len = 0 if end >= length else overlap_frames
+
+        return start, end
 
     def resolve_default_sample(self):
         default_input_dir = self.config.default_input_dir
