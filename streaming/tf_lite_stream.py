@@ -25,10 +25,13 @@ class TFLiteTorchStream:
         self.segment = segment
 
         try:
-            Path(config.original_model_dst).mkdir(exist_ok=False)
+            Path(config.ConverterConfig.original_model_dst).mkdir(exist_ok=False)
         except FileExistsError:
-            shutil.rmtree(config.original_model_dst)
-        shutil.copytree(config.original_model_src, config.original_model_dst)
+            shutil.rmtree(config.ConverterConfig.original_model_dst)
+        shutil.copytree(
+            config.ConverterConfig.original_model_src,
+            config.ConverterConfig.original_model_dst,
+        )
         py_module = importlib.import_module(config.StreamConfig.stft_py_module)
         cls_stft = getattr(py_module, "STFT")
         self.stft = cls_stft(self.nfft)
@@ -69,12 +72,7 @@ class TFLiteTorchStream:
         stream_vocals.add_audio_stream(sample_rate, TFLiteTorchStream.NUM_CHANNELS)
 
         chunk_count = int(sample_rate * duration // frames_per_chunk) if duration else 0
-        with (
-            stream_drums.open(),
-            stream_bass.open(),
-            stream_other.open(),
-            stream_vocals.open(),
-        ):
+        with stream_drums.open(), stream_bass.open(), stream_other.open(), stream_vocals.open():
             for i, chunk in tqdm(enumerate(stream_mix.stream())):
                 if duration and i > chunk_count:
                     break

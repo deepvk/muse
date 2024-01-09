@@ -174,11 +174,9 @@ def converter_concat(tensors: Tuple[torch.Tensor], dim):
 
 
 def main(args, config):
-    try:
-        Path(config.original_model_dst).mkdir(exist_ok=False)
-    except FileExistsError:
-        shutil.rmtree(config.original_model_dst)
-    shutil.copytree(config.original_model_src, config.original_model_dst)
+    shutil.copytree(
+        config.original_model_src, config.original_model_dst, dirs_exist_ok=True
+    )
     py_module = importlib.import_module(args.model_py_module)
     cls_model = getattr(py_module, args.class_name)
     model = cls_model(
@@ -200,7 +198,7 @@ def main(args, config):
         download_weights = True
     except FileExistsError:
         try:
-            Path(weights_path).touch(exist_ok=False)
+            weights_path.touch(exist_ok=False)
             download_weights = True
         except FileExistsError:
             download_weights = False
@@ -224,7 +222,7 @@ def main(args, config):
         def istft(self, z):
             return self.model.stft.istft(z, self.length_wave)
 
-    SEGMENT_WAVE = config.sample_rate * config.segment_duration
+    SEGMENT_WAVE = int(config.sample_rate * config.segment_duration)
     dummy_wave = torch.rand(size=(1, 2, SEGMENT_WAVE))
     dummy_spectr = OuterSTFT(SEGMENT_WAVE, model).stft(dummy_wave)
 
@@ -236,13 +234,17 @@ def main(args, config):
     )
 
     model_filename = f"{args.class_name}_outer_stft_{config.segment_duration:.1f}"
-    model_path = args.out_dir + "/" + model_filename
+    model_path = f"{args.out_dir}/{model_filename}"
+    try:
+        Path(args.out_dir).mkdir(exist_ok=False)
+    except (OSError, FileExistsError):
+        pass
 
-    keras_model.save(model_path + ".h5")
+    keras_model.save(f"{model_path}.h5")
     custom_objects = {"WeightLayer": WeightLayer}
 
     converter = TFLiteConverter.from_keras_model_file(
-        model_path + ".h5", custom_objects=custom_objects
+        f"{model_path}.h5", custom_objects=custom_objects
     )
     converter.target_ops = [
         tf.lite.OpsSet.SELECT_TF_OPS,
@@ -250,7 +252,7 @@ def main(args, config):
     ]
     tflite_model = converter.convert()
 
-    with open(model_path + ".tflite", "wb") as f:
+    with open(f"{model_path}.tflite", "wb") as f:
         f.write(tflite_model)
 
 
