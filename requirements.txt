@@ -1,5 +1,5 @@
 ffmpeg-python==0.2.0
-gdown
+gdown==4.6.3
 julius==0.2.7
 lpips==0.1.4
 musdb==0.4.0

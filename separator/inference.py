@@ -54,9 +54,10 @@ class InferenceModel:
         if download_weights:
             gdown.download(gdrive_url, str(self.weights_path))
 
-    def track(self, sample_mixture_path):
+    def track(self, sample_mixture_path, output_dir):
         if sample_mixture_path == self.config.default_input_dir:
             sample_mixture_path = self.resolve_default_sample()
+        output_dir = f"{output_dir}/{sample_mixture_path.split('/')[-1]}"
 
         offset = self.config.offset
         duration = self.config.duration
@@ -75,7 +76,10 @@ class InferenceModel:
 
         # Denormalize
         sources = sources * ref.std() + ref.mean()
+        
         sources_list = ["drums", "bass", "other", "vocals"]
+        sources_ouputs = {s: f"{output_dir}/{s}.wav" for s in sources_list}
+
         B, S, C, T = sources.shape
         sources = (
             sources.view(B, S * C, T)
@@ -84,7 +88,9 @@ class InferenceModel:
         sources = list(sources)
 
         audios = dict(zip(sources_list, sources[0]))
-        audios["original"] = waveform[:, start:end]
+        for k, v in audios.items():
+            audios[k] = {"source": v, "path": sources_ouputs[k]}
+
         return audios
 
     def separate_sources(self, mix, sample_rate):
@@ -172,20 +178,12 @@ class InferenceModel:
 
 def main(args, config):
     inf_model = InferenceModel(config)
-    audios = inf_model.track(args.mix_path)
+    audios = inf_model.track(args.mix_path, args.out_dir)
 
-    out_dir = f"{args.out_dir}/{os.path.basename(args.mix_path)}/"
-    out_paths = (
-        f"{out_dir}drums.wav",
-        f"{out_dir}bass.wav",
-        f"{out_dir}other.wav",
-        f"{out_dir}vocals.wav",
-    )
-
-    torchaudio.save(out_paths[0], audios["drums"], config.sample_rate)
-    torchaudio.save(out_paths[1], audios["bass"], config.sample_rate)
-    torchaudio.save(out_paths[2], audios["other"], config.sample_rate)
-    torchaudio.save(out_paths[3], audios["vocals"], config.sample_rate)
+    torchaudio.save(audios["drums"]["path"], audios["drums"]["source"], config.sample_rate)
+    torchaudio.save(audios["bass"]["path"], audios["bass"]["source"], config.sample_rate)
+    torchaudio.save(audios["other"]["path"], audios["other"]["source"], config.sample_rate)
+    torchaudio.save(audios["vocals"]["path"], audios["vocals"]["source"], config.sample_rate)
 
 
 if __name__ == "__main__":
