@@ -42,6 +42,7 @@ class InferenceModel:
             )
             gdrive_url = self.config.gdrive_weights_conv
 
+        download_weights = True
         try:
             self.config.weights_dir.mkdir(parents=True)
             download_weights = True
