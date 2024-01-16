@@ -1,0 +1,8 @@
+.vscode
+**/__pycache__/
+separator/inference/
+streaming/weights
+streaming/input/
+streaming/streams/
+streaming/model/
+streaming/tflite_model/
