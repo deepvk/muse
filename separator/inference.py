@@ -11,10 +11,15 @@ from model.PM_Unet import Model_Unet
 
 
 class InferenceModel:
-    def __init__(self, config, model_bottlneck_lstm=True):
+    def __init__(self, config, model_bottlneck_lstm=True, weights_path=""):
         self.config = config
         self.model_bottlneck_lstm = model_bottlneck_lstm
-        self.resolve_weigths()
+
+        weights_path = "" if weights_path is None else weights_path
+        if Path(weights_path).is_file():
+            self.weights_path = weights_path
+        else:
+            self.resolve_weigths()
 
         self.model = Model_Unet(
             source=["drums", "bass", "other", "vocals"],
@@ -42,13 +47,13 @@ class InferenceModel:
             )
             gdrive_url = self.config.gdrive_weights_conv
 
-        download_weights = True
         try:
-            self.config.weights_dir.mkdir(parents=True)
+            self.config.weights_dir.mkdir(exist_ok=False, parents=True)
             download_weights = True
         except FileExistsError:
             try:
-                Path(self.weights_path).touch()
+                Path(self.weights_path).touch(exist_ok=False)
+                download_weights = True
             except FileExistsError:
                 download_weights = False
 
@@ -58,7 +63,8 @@ class InferenceModel:
     def track(self, sample_mixture_path, output_dir):
         if sample_mixture_path == self.config.default_input_dir:
             sample_mixture_path = self.resolve_default_sample()
-        output_dir = f"{output_dir}/{sample_mixture_path.split('/')[-1]}"
+        output_path = Path(output_dir) / Path(sample_mixture_path).stem
+        output_path.mkdir(exist_ok=True, parents=True)
 
         offset = self.config.offset
         duration = self.config.duration
@@ -77,9 +83,9 @@ class InferenceModel:
 
         # Denormalize
         sources = sources * ref.std() + ref.mean()
-        
+
         sources_list = ["drums", "bass", "other", "vocals"]
-        sources_ouputs = {s: f"{output_dir}/{s}.wav" for s in sources_list}
+        sources_ouputs = {s: f"{str(output_path)}/{s}.wav" for s in sources_list}
 
         B, S, C, T = sources.shape
         sources = (
@@ -169,7 +175,7 @@ class InferenceModel:
 
         default_sample_path = f"{default_input_dir}/sample.wav"
         try:
-            Path(default_sample_path).touch()
+            Path(default_sample_path).touch(exist_ok=False)
             gdown.download(self.config.gdrive_mix, default_sample_path)
         except FileExistsError:
             pass
@@ -178,13 +184,21 @@ class InferenceModel:
 
 
 def main(args, config):
-    inf_model = InferenceModel(config)
+    inf_model = InferenceModel(config, weights_path=args.weights_path)
     audios = inf_model.track(args.mix_path, args.out_dir)
 
-    torchaudio.save(audios["drums"]["path"], audios["drums"]["source"], config.sample_rate)
-    torchaudio.save(audios["bass"]["path"], audios["bass"]["source"], config.sample_rate)
-    torchaudio.save(audios["other"]["path"], audios["other"]["source"], config.sample_rate)
-    torchaudio.save(audios["vocals"]["path"], audios["vocals"]["source"], config.sample_rate)
+    torchaudio.save(
+        audios["drums"]["path"], audios["drums"]["source"], config.sample_rate
+    )
+    torchaudio.save(
+        audios["bass"]["path"], audios["bass"]["source"], config.sample_rate
+    )
+    torchaudio.save(
+        audios["other"]["path"], audios["other"]["source"], config.sample_rate
+    )
+    torchaudio.save(
+        audios["vocals"]["path"], audios["vocals"]["source"], config.sample_rate
+    )
 
 
 if __name__ == "__main__":
@@ -207,7 +221,13 @@ if __name__ == "__main__":
         default=config.default_result_dir,
         type=str,
     )
-    # TODO : argument for weigths
+    parser.add_argument(
+        "-w",
+        dest="weights_path",
+        help="specified path to weights",
+        required=False,
+        type=str,
+    )
 
     args = parser.parse_args()
     main(args, config)
