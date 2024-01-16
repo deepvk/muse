@@ -90,8 +90,8 @@ class InferenceConfig:
     # INFERENCE OPTIONS
     segment            : int              = 7                                 # Length (in seconds) of each audio segment used during inference.
     overlap            : float            = 0.2                               # overlapping segments at the beginning of the track and at the end
-    offset             : Union[int, None] = None                              # start of segment to split
-    duration           : Union[int, None] = None                              # end of segment to split
+    offset             : Union[int, None] = None                              # start (in seconds) of segment to split
+    duration           : Union[int, None] = None                              # duration (in seconds) of segment to split, use with `offset`
     sample_rate        : int              = 44100                             # sample rate track
     num_channels       : int              = 2                                 # Number of channels in the audio track 
     default_result_dir : str              = "/app/separator/inference/output" # path file output tracks

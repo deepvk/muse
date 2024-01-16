@@ -8,7 +8,7 @@ class ConverterConfig:
     weights_dir            : Path = Path("/app/streaming/weights")      # Path to the directory where the model weight files are stored. 
     weights_LSTM_filename  : str  = "weight_LSTM.pt"                    # This is the filename for the LSTM weights file.
     weights_conv_filename  : str  = "weight_conv.pt"                    # This is the filename for the without CNN weights file.
-    gdrive_weights_LSTM_id : str  = "18jT2TYffdRD1fL7wecAiM5nJPM_OKpNB" # This is the Google Drive ID for the LSTM weights file.
+    gdrive_weights_LSTM_id : str  = "1uhAVMvW3x-KL2T2-VkjKjn9K7dTJnoyo" # This is the Google Drive ID for the LSTM weights file.
     gdrive_weights_conv_id : str  = "1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7" # This is the Google Drive ID for the CNN weights file.
     
     # MODEL OPTIONS
