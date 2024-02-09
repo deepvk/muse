@@ -62,7 +62,7 @@ With successful script run four audio files (`vocals.wav` and `drums.wav`, `bass
 **You can download weights manually**
 
 Download one the .pt file below:
- * [LSTM-bottleneck version](https://drive.google.com/file/d/18jT2TYffdRD1fL7wecAiM5nJPM_OKpNB/view?usp=drive_link)
+ * [LSTM-bottleneck version](https://drive.google.com/file/d/1uhAVMvW3x-KL2T2-VkjKjn9K7dTJnoyo/view?usp=drive_link)
  * [WIthout LSTM-bottleneck version](https://drive.google.com/file/d/1VO07OYbsnCuEJYRSuA8HhjlQnx6dbWX7/view?usp=drive_link)
 
  ### Streaming
