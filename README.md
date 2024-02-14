@@ -1,6 +1,8 @@
-# PM-Unet: phase and magnitude aware model for music source separation
+# 🎵 MuSe: Music Separation 
  [![githubio](https://img.shields.io/badge/GitHub.io-Audio_Samples-blue?logo=Github&style=flat-square)](https://d-a-yakovlev.github.io/test/)
  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1OXlCZgd5KidMDZDUItOIT9ZA4IUJHXsZ?usp=sharing)
+
+Phase and magnitude aware model for music source separation
 
 ## Navigation
 1. [Structure](#structure)
